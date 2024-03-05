@@ -18,6 +18,8 @@ class SnapshotGraph:
         for row in data:
             i, j, t, w = int(row[0]), int(row[1]), int(row[2]), float(row[3])
             tensor[i, j, t] = w
+            if directed is False:
+                tensor[j, i, t] = w
 
         self._tensor = tensor
 
