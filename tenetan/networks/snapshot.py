@@ -6,11 +6,11 @@ __all__ = ['SnapshotGraph']
 
 class SnapshotGraph:
 
-    def __init__(self, path, /, *, directed=True):
+    def __init__(self, path, /, *, directed=True, dtype=np.float32):
 
         # TODO Load network from path
         # If directed is true, n[i,j,t] =w; if false, also n[j,i,t] = w
-        data = np.loadtxt(path, dtype=np.float32, delimiter=',', comments='#')
+        data = np.loadtxt(path, dtype=dtype, delimiter=',', comments='#')
         max_coords = np.max(data[:, :3], axis=0).astype(int) + 1
         max_vertex = max(max_coords[0], max_coords[1])
         max_time = max_coords[2]
@@ -21,5 +21,5 @@ class SnapshotGraph:
             if directed is False:
                 tensor[j, i, t] = w
 
-        self._tensor = tensor
+        self._tensor = tl.tensor(tensor, dtype=dtype)
 
