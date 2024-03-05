@@ -14,8 +14,8 @@ class SnapshotGraph:
         max_coords = np.max(data[:, :3], axis=0) + 1
         tensor = np.full((max_coords[0], max_coords[1], max_coords[2]), 0.0)
         for row in data:
-            x, y, z, value = map(int, row)
-            tensor[x, y, z] = value
+            i, j, t, w = int(row[0]), int(row[1]), int(row[2]), float(row[3])
+            tensor[i, j, t] = w
 
         self.tensor = tensor
 
