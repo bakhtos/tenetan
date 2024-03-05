@@ -19,5 +19,5 @@ class SnapshotGraph:
             i, j, t, w = int(row[0]), int(row[1]), int(row[2]), float(row[3])
             tensor[i, j, t] = w
 
-        self.tensor = tensor
+        self._tensor = tensor
 
