@@ -23,7 +23,7 @@ def preprocess_directory(input_dir, /, *, output_file=None, source_col='i', targ
     return all_data
 
 
-def preprocess_names(input_file, /, source_col='i', target_col='j', time_col='t', weight_col='w',
+def preprocess_names(input_file, /, *, source_col='i', target_col='j', time_col='t', weight_col='w',
                      output_file=None, vertex_file=None, timestamp_file=None):
     data = pd.read_csv(input_file)
 
