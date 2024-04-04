@@ -8,24 +8,21 @@ def p_folder(args):
 
 
 parser = argparse.ArgumentParser('Tenetan file preprocessing')
-subparsers = parser.add_subparsers()
+subparsers = parser.add_subparsers(title='Subcommands', description='Preprocessing stages')
 
-folder = subparsers.add_parser('dir', help='Process a directory of static networks into a temporal network')
+folder = subparsers.add_parser('dir', help='Process a directory of static networks into a single temporal network file')
 folder.add_argument('--input_dir', '-i', required=True, type=str,
                     help='Name of directory containing static network files, '
-                         'will be processed in sorted order')
+                         'will be processed in filename sorted order')
 folder.add_argument('--output_file', '-o', required=False, default='default',
                     help='Path to save the output, if default, '
                          'will save to {input_dir}_concat.csv alongside input_dir')
 folder.add_argument('--source_col', '-s', required=False, default='i', help='Name of the source column in the provided '
-                                                                            'network files, will be renamed to "i" in the '
-                                                                            'output')
+                                                                            'network files')
 folder.add_argument('--target_col', '-t', required=False, default='j', help='Name of the target column in the provided '
-                                                                            'network files, will be renamed to "j" in the '
-                                                                            'output')
+                                                                            'network files')
 folder.add_argument('--weight_col', '-w', required=False, default='w', help='Name of the weight column in the provided '
-                                                                            'network files, will be renamed to "w" in the '
-                                                                            'output')
+                                                                            'network files')
 folder.set_defaults(func=p_folder)
 args = parser.parse_args()
 args.func(args)
