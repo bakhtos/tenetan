@@ -11,7 +11,8 @@ def p_names(args):
     from .preprocess import preprocess_names
     preprocess_names(args.input_file, output_file=args.output_file, timestamp_file=args.timestamp_file,
                      vertex_file=args.vertex_file, source_col=args.source_col, target_col=args.target_col,
-                     time_col=args.time_col, weight_col=args.weight_col)
+                     time_col=args.time_col, weight_col=args.weight_col,
+                     sort_vertices=args.sort_vertices, sort_timestamps=args.sort_timestamps)
 
 
 parser = argparse.ArgumentParser('Tenetan file preprocessing')
@@ -48,6 +49,10 @@ names.add_argument('--weight_col', '-w', required=False, default='w', type=str,
                    help='Name of the weight column in the provided network files (default w)')
 names.add_argument('--time_col', '-ti', required=False, default='t', type=str,
                    help='Name of the time column in the provided network files (default t)')
+names.add_argument('--sort_vertices', action='store_true', required=False,
+                   help='If set, vertices will be sorted to determine 0-based index, otherwise will go in encounter order')
+names.add_argument('--sort_timestamps', action='store_true', required=False,
+                   help='If set, timestamps will be sorted to determine 0-based index, otherwise will go in encounter order')
 names.set_defaults(func=p_names)
 
 args = parser.parse_args()

@@ -26,11 +26,15 @@ def preprocess_directory(input_dir, /, *, output_file=None, source_col='i', targ
 
 
 def preprocess_names(input_file, /, *, source_col='i', target_col='j', time_col='t', weight_col='w',
-                     output_file=None, vertex_file=None, timestamp_file=None):
+                     output_file=None, vertex_file=None, timestamp_file=None,
+                     sort_vertices=False, sort_timestamps=False):
     data = pd.read_csv(input_file)
 
-    vertex_list = sorted(pd.concat([data[source_col], data[target_col]]).unique().to_list())
-    timestamp_list = sorted(data[time_col].unique().tolist())
+    vertex_list = list(pd.concat([data[source_col], data[target_col]]).unique())
+    vertex_list.sort() if sort_vertices else None
+
+    timestamp_list = list(data[time_col].unique())
+    timestamp_list.sort() if sort_timestamps else None
 
     vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
     timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
