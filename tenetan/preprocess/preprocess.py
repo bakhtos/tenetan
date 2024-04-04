@@ -39,20 +39,17 @@ def preprocess_names(input_file, /, *, source_col='i', target_col='j', time_col=
     data['w'] = data[weight_col]
 
     if output_file is not None:
-        if output_file == 'default':
-            output_file = 'network.csv'
+        output_file = 'network.csv' if output_file == 'default' else output_file
         data.to_csv(output_file, header=False, index=False, columns=['i', 'j', 't', 'w'])
 
     if vertex_file is not None:
-        if vertex_file == 'default':
-            vertex_file = 'vertices.txt'
+        vertex_file = 'vertices.txt' if vertex_file == 'default' else vertex_file
         with open(vertex_file, 'w') as f:
             for vertex in vertex_list:
                 f.write(f'{vertex}\n')
 
     if timestamp_file is not None:
-        if timestamp_file == 'default':
-            timestamp_file = 'timestamps.txt'
+        timestamp_file = 'timestamps.txt' if timestamp_file == 'default' else timestamp_file
         with open(timestamp_file, 'w') as f:
             for timestamp in timestamp_list:
                 f.write(f'{timestamp}\n')
