@@ -62,4 +62,4 @@ def preprocess_names(input_file, /, *, source_col='i', target_col='j', time_col=
 
 if __name__ == '__main__':
 
-    print('ERROR: Call this package as main as "python -m tenetan.preprocess"')
+    print('ERROR: Call this package as main with "python -m tenetan.preprocess"')
