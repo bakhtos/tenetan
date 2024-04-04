@@ -16,7 +16,7 @@ folder.add_argument('--input_dir', '-i', required=True, type=str,
                          'will be processed in sorted order')
 folder.add_argument('--output_file', '-o', required=False, default='default',
                     help='Path to save the output, if default, '
-                         'will save to {input_dir}_concat.csv in CWD')
+                         'will save to {input_dir}_concat.csv alongside input_dir')
 folder.add_argument('--source_col', '-s', required=False, default='i', help='Name of the source column in the provided '
                                                                             'network files, will be renamed to "i" in the '
                                                                             'output')
