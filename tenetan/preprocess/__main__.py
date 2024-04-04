@@ -9,7 +9,7 @@ def p_folder(args):
 
 def p_names(args):
     from .preprocess import preprocess_names
-    preprocess_names(args.input_dir, output_file=args.output_file, timestamp_file=args.timestamp_file,
+    preprocess_names(args.input_file, output_file=args.output_file, timestamp_file=args.timestamp_file,
                      vertex_file=args.vertex_file, source_col=args.source_col, target_col=args.target_col,
                      time_col=args.time_col, weight_col=args.weight_col)
 
