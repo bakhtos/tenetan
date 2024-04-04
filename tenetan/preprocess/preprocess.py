@@ -4,7 +4,7 @@ import pandas as pd
 __all__ = ['preprocess_directory', 'preprocess_names']
 
 
-def preprocess_directory(input_dir, /, *, output_file=None, source_col, target_col, weight_col):
+def preprocess_directory(input_dir, /, *, output_file=None, source_col='i', target_col='j', weight_col='w'):
     files = sorted(os.listdir(input_dir))
     all_data = []
     for time, file in enumerate(files):
