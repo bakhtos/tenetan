@@ -1,5 +1,0 @@
-eshop_network_service_2.0.0
-eshop_network_service_2.0.5
-eshop_network_service_2.0.8
-eshop_network_service_2.2.0
-eshop_network_service_3.0.0
