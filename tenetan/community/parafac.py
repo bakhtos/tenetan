@@ -25,6 +25,8 @@ def parafac_community(network: SnapshotGraph, n_communities: int, /, *to_return,
 
     cp_tensor, errors = tl.decomposition.non_negative_parafac_hals(network._tensor, n_communities, **tensorly_kwargs)
     in_communities, out_communities, raw_temporal_activity = cp_tensor.factors
+
+    #  Construct output
     return_dict = {}
     for data in to_return:  # TODO Switch to match when upgrading to 9.10
         if data == "in_communities":
@@ -36,16 +38,16 @@ def parafac_community(network: SnapshotGraph, n_communities: int, /, *to_return,
         elif data == "in_temporal_activity":  # TODO add proper matrix handling instead of the for-loops
             weights = tl.sum(in_communities, axis=0)
             in_temporal_activity = tl.zeros_like(raw_temporal_activity)
-            for i in tl.shape(in_temporal_activity)[0]:
-                for j in tl.shape(in_temporal_activity)[1]:
+            for i in range(tl.shape(in_temporal_activity)[0]):
+                for j in range(tl.shape(in_temporal_activity)[1]):
                     in_temporal_activity = tl.index_update(in_temporal_activity, tl.index[i, j],
                                                            raw_temporal_activity[i, j] * weights[j])
             return_dict[data] = in_temporal_activity
         elif data == "out_temporal_activity":
             weights = tl.sum(in_communities, axis=0)
             out_temporal_activity = tl.zeros_like(raw_temporal_activity)
-            for i in tl.shape(out_temporal_activity)[0]:
-                for j in tl.shape(out_temporal_activity)[1]:
+            for i in range(tl.shape(out_temporal_activity)[0]):
+                for j in range(tl.shape(out_temporal_activity)[1]):
                     out_temporal_activity = tl.index_update(out_temporal_activity, tl.index[i, j],
                                                             raw_temporal_activity[i, j]*weights[j])
             return_dict[data] = out_temporal_activity
