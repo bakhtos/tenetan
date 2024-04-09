@@ -1,3 +1,3 @@
-from .parafac import parafac_community
+from .parafac import community_parafac_nn_als
 
-__all__ = ['parafac_community']
+__all__ = ['community_parafac_nn_als']

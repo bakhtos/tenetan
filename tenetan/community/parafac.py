@@ -4,19 +4,27 @@ import tlviz
 
 import logging
 
-__all__ = ['parafac_community']
+__all__ = ['community_parafac_nn_als']
 
 
-def parafac_community(network: SnapshotGraph, n_communities: int, /, *to_return, **tensorly_kwargs):
+def community_parafac_nn_als(network: SnapshotGraph, n_communities: int, /, *to_return, **tensorly_kwargs):
     """
-    Gauvin L, Panisson A, Cattuto C (2014) Detecting the Community Structure and Activity Patterns of Temporal Networks:
+    Temporal Community detcetion via Non-negative Alternating Least Squares PARAFAC Decomposition
+    [1] Gauvin L, Panisson A, Cattuto C (2014) Detecting the Community Structure and Activity Patterns of Temporal Networks:
     A Non-Negative Tensor Factorization Approach. PLoS ONE 9(1): e86028.
     https://doi.org/10.1371/journal.pone.0086028
     :param network: Temporal network
     :param n_communities: Number of communities to detect
-    :param to_return: Data to return, default ('in_communities', 'out_communities', 'raw_temporal_activity')
+    :param to_return: Data to return, can container the following fields:
+        - "in_communities": matrix describing the in-membership of the nodes to communities (first tensor of decomposition)
+        - "out_communities": matrix describing the out-membership of the nodes to communities (second tensor of decomposition)
+        - "raw_temporal_activity": matrix describing the temporal activity of communities (third tensor of decomposition)
+        - "in_temporal_activity": raw temporal activity scaled by the sum of all nodes' in_community weights in that community (eq. 9 in [1])
+        - "out_temporal_activity": raw temporal activity scaled by the sum of all nodes' out_community weights in that community (eq. 9 in [1])
+        - "core_consistency": core consistency metric of the calculated decomposition
+        - "errors": errors of decomposition of each iteration as return by tensorly.decomposition.non_negative_pafarac_hals
     :param tensorly_kwargs: kwargs to pass to tensorly.decomposition.non_negative_parafac_hals
-    :return:
+    :return: a dict of requested data, default ('in_communities', 'out_communities', 'raw_temporal_activity')
     """
 
     if len(to_return) == 0:
