@@ -31,3 +31,6 @@ dependencies = [
 
 [project.optional-dependencies]
 prepr = ["pandas"]
+
+[project.urls]
+Homepage = "https://github.com/bakhtos/tenetan"
