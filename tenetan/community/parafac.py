@@ -1,6 +1,6 @@
 from tenetan.networks import SnapshotGraph
 import tensorly as tl
-import numpy as np
+import tlviz
 
 import logging
 
@@ -51,6 +51,8 @@ def parafac_community(network: SnapshotGraph, n_communities: int, /, *to_return,
                     out_temporal_activity = tl.index_update(out_temporal_activity, tl.index[i, j],
                                                             raw_temporal_activity[i, j]*weights[j])
             return_dict[data] = out_temporal_activity
+        elif data == 'core_consistency':
+            return_dict[data] = tlviz.model_evaluation.core_consistency(cp_tensor, network._tensor)
         elif data == "errors":
             return_dict[data] = errors
         else:
