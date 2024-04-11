@@ -52,7 +52,7 @@ def community_parafac_nn_als(network: SnapshotGraph, n_communities: int, /, *to_
                                                            raw_temporal_activity[i, j] * weights[j])
             return_dict[data] = in_temporal_activity
         elif data == "out_temporal_activity":
-            weights = tl.sum(in_communities, axis=0)
+            weights = tl.sum(out_communities, axis=0)
             out_temporal_activity = tl.zeros_like(raw_temporal_activity)
             for i in range(tl.shape(out_temporal_activity)[0]):
                 for j in range(tl.shape(out_temporal_activity)[1]):
