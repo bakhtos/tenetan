@@ -1,3 +1,4 @@
+import csv
 import os.path
 import pathlib
 
@@ -85,3 +86,19 @@ class SnapshotGraph:
         all_data = pd.concat(all_data, ignore_index=True)
         self._load_pandas(all_data, source_col=source_col, target_col=target_col, weight_col=weight_col, directed=directed,
                           dtype=dtype, sort_vertices=sort_vertices, time_col='t', sort_timestamps=False)
+
+    def write_csv(self, path, /, *, source_col='i', target_col='j', time_col='t', weight_col='w'):
+
+        csv_header = [source_col, target_col, time_col, weight_col]
+        csv_rows = []
+
+        for source_vertex, i in self._vertex_index_mapping.items():
+            for target_vertex, j in self._vertex_index_mapping.items():
+                for timestamp, t in self._timestamp_index_mapping.items():
+                    if (w := self._tensor[i, j, t]) != 0.0:
+                        csv_rows.append([source_vertex, target_vertex, timestamp, w])
+
+        with open(path, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(csv_header)
+            writer.writerows(csv_rows)
