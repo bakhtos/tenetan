@@ -13,8 +13,32 @@ class SnapshotGraph:
     def __init__(self):
 
         self._tensor = None
-        self.vertices = []
-        self.timestamps = []
+        self._vertices: list = []
+        self._timestamps: list = []
+        self._vertex_index_mapping: dict[str, int] = {}
+        self._timestamp_index_mapping: dict[str, int] = {}
+
+    @property
+    def vertices(self):
+        return self._vertices
+
+    @vertices.setter
+    def vertices(self, new_value):
+        assert type(new_value) is list
+        assert len(self._vertices) == len(new_value)
+        self._vertices = new_value
+        self._vertex_index_mapping = {value: index for index, value in enumerate(new_value)}
+
+    @property
+    def timestamps(self):
+        return self._timestamps
+
+    @timestamps.setter
+    def timestamps(self, new_value):
+        assert type(new_value) is list
+        assert len(self._timestamps) == len(new_value)
+        self._timestamps = new_value
+        self._timestamp_index_mapping = {value: index for index, value in enumerate(new_value)}
 
     def load_csv(self, input_file, /, *, source_col='i', target_col='j', time_col='t', weight_col='w',
                  directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
@@ -46,8 +70,10 @@ class SnapshotGraph:
             if directed is False:
                 tensor[j, i, t] = w
         self._tensor = tl.tensor(tensor, dtype=dtype)
-        self.vertices = vertex_list
-        self.timestamps = timestamp_list
+        self._vertices = vertex_list
+        self._timestamps = timestamp_list
+        self._vertex_index_mapping = vertex_index_mapping
+        self._timestamp_index_mapping = timestamp_index_mapping
 
     def load_csv_directory(self, directory, /, *, source_col='i', target_col='j', weight_col='w',
                            directed=True, dtype=np.float32, sort_vertices=False):
