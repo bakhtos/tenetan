@@ -1,3 +1,6 @@
+import os.path
+import pathlib
+
 import tensorly as tl
 import pandas as pd
 import numpy as np
@@ -18,32 +21,41 @@ class SnapshotGraph:
 
         data = pd.read_csv(input_file)
 
-        vertex_list = list(pd.concat([data[source_col], data[target_col]]).unique())
+        self._load_pandas(data, directed, dtype, sort_timestamps, sort_vertices, source_col, target_col, time_col,
+                          weight_col)
+
+    def _load_pandas(self, dataframe, directed, dtype, sort_timestamps, sort_vertices, source_col, target_col, time_col,
+                     weight_col):
+
+        vertex_list = list(pd.concat([dataframe[source_col], dataframe[target_col]]).unique())
         vertex_list.sort() if sort_vertices else None
-
-        timestamp_list = list(data[time_col].unique())
+        timestamp_list = list(dataframe[time_col].unique())
         timestamp_list.sort() if sort_timestamps else None
-
         vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
         timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
-
-        data['i'] = data[source_col].map(vertex_index_mapping)
-        data['j'] = data[target_col].map(vertex_index_mapping)
-        data['t'] = data[time_col].map(timestamp_index_mapping)
-        data['w'] = data[weight_col]
-
+        dataframe['i'] = dataframe[source_col].map(vertex_index_mapping)
+        dataframe['j'] = dataframe[target_col].map(vertex_index_mapping)
+        dataframe['t'] = dataframe[time_col].map(timestamp_index_mapping)
+        dataframe['w'] = dataframe[weight_col]
         max_vertex = len(vertex_list)
         max_time = len(timestamp_list)
-
         tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
-
-        for row in data.itertuples(index=False):
+        for row in dataframe.itertuples(index=False):
             i, j, t, w = int(row.i), int(row.j), int(row.t), float(row.w)
             tensor[i, j, t] = w
             if directed is False:
                 tensor[j, i, t] = w
-
         self._tensor = tl.tensor(tensor, dtype=dtype)
-
         self.vertices = vertex_list
         self.timestamps = timestamp_list
+
+    def load_csv_directory(self, directory, /, *, source_col='i', target_col='j', weight_col='w',
+                           directed=True, dtype=np.float32, sort_vertices=False):
+        all_data = []
+        for file in sorted(os.listdir(directory)):
+            data = pd.read_csv(os.path.join(directory, file))
+            data['t'] = str(pathlib.Path(file).with_suffix(''))
+            all_data.append(data)
+        all_data = pd.concat(all_data, ignore_index=True)
+        self._load_pandas(all_data, source_col=source_col, target_col=target_col, weight_col=weight_col, directed=directed,
+                          dtype=dtype, sort_vertices=sort_vertices, time_col='t', sort_timestamps=False)
