@@ -7,7 +7,7 @@ import numpy as np
 
 class SupraAdjacencyMatrix:
 
-    def __init__(self, snapshot, time_coupling, epsilon=1.0, centrality_function=None):
+    def __init__(self, snapshot, inter_layer_similarity, centrality_function=None, epsilon=1.0):
         self._cc = None
         self._mlc = None
         self._mnc = None
@@ -24,39 +24,39 @@ class SupraAdjacencyMatrix:
         snapshot = tl.to_numpy(snapshot.tensor)
 
         # Create an empty (N*T, N*T) matrix
-        supra_adjacency = np.zeros((NT, NT))
+        supra_centrality = np.zeros((NT, NT))
 
         # Get indices for diagonal blocks
         idx = np.arange(T) * N
 
         # Assign values using NumPy advanced indexing
         for t in range(T):
-            supra_adjacency[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(snapshot[:, :, t])
-        if time_coupling is None:
-            diagonal_matrix = np.zeros((NT, NT))
-        elif isinstance(time_coupling, str):
-            if time_coupling not in ["F", "B", "FB", "BF"]:
+            supra_centrality[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(snapshot[:, :, t])
+        if inter_layer_similarity is None:
+            ils = np.zeros((NT, NT))
+        elif isinstance(inter_layer_similarity, str):
+            if inter_layer_similarity not in ["F", "B", "FB", "BF"]:
                 raise ValueError("time_coupling must be one of the following: F, B, BF, FB")
-            diagonal_matrix = np.zeros((T,T))
-            if "F" in time_coupling:
-                diagonal_matrix += np.eye(T, k=1)
-            if "B" in time_coupling:
-                diagonal_matrix += np.eye(T, k=-1)
-            diagonal_matrix = np.kron(diagonal_matrix, np.eye(N))
-        elif isinstance(time_coupling, np.ndarray):
-            if time_coupling.shape == (T, T):
-                diagonal_matrix = np.kron(time_coupling, np.eye(N))
-            elif time_coupling.shape == (NT, NT):
-                diagonal_matrix = time_coupling
+            ils = np.zeros((T,T))
+            if "F" in inter_layer_similarity:
+                ils += np.eye(T, k=1)
+            if "B" in inter_layer_similarity:
+                ils += np.eye(T, k=-1)
+            ils = np.kron(ils, np.eye(N))
+        elif isinstance(inter_layer_similarity, np.ndarray):
+            if inter_layer_similarity.shape == (T, T):
+                ils = np.kron(inter_layer_similarity, np.eye(N))
+            elif inter_layer_similarity.shape == (NT, NT):
+                ils = inter_layer_similarity
             else:
-                raise ValueError(f"Cannot use time_coupling of shape {time_coupling.shape}; must be either (T,T) or (NT, NT)")
-        elif callable(time_coupling):
-            diagonal_matrix = time_coupling(snapshot)
+                raise ValueError(f"Cannot use time_coupling of shape {inter_layer_similarity.shape}; must be either (T,T) or (NT, NT)")
+        elif callable(inter_layer_similarity):
+            ils = inter_layer_similarity(snapshot)
         else:
             raise ValueError("Time coupling must be a numpy.ndarray or string")
-        supra_adjacency += diagonal_matrix
+        supra_centrality += ils
 
-        self._supra = supra_adjacency
+        self._supra = supra_centrality
 
     def compute_centrality(self):
         # Compute eigenvalues and eigenvectors
@@ -122,18 +122,19 @@ class SupraAdjacencyMatrix:
 class TaylorSupraMatrix(SupraAdjacencyMatrix):
 
     def __init__(self, snapshot, epsilon=1.0, centrality_function=None):
-        super().__init__(snapshot, time_coupling='FB', centrality_function=centrality_function, epsilon=epsilon)
+        super().__init__(snapshot, inter_layer_similarity='FB', centrality_function=centrality_function,
+                         epsilon=epsilon)
 
 
 class YinSupraMatrix(SupraAdjacencyMatrix):
 
     def __init__(self, snapshot):
-        super().__init__(snapshot, time_coupling=YinLayerSimilarity)
+        super().__init__(snapshot, inter_layer_similarity=YinLayerSimilarity)
 
 
 class LiuSupraMatrix(SupraAdjacencyMatrix):
 
     def __init__(self, snapshot):
-        super().__init__(snapshot, time_coupling=LiuLayerSimilarity, centrality_function=LiuCentralityFunction)
+        super().__init__(snapshot, inter_layer_similarity=LiuLayerSimilarity, centrality_function=LiuCentralityFunction)
 
 
