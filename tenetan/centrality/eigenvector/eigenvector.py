@@ -23,37 +23,42 @@ class SupraAdjacencyMatrix:
         self._orig_NT = NT
         snapshot = tl.to_numpy(snapshot.tensor)
 
-        # Create an empty (N*T, N*T) matrix
+        # Set centrality (adjacency) matrices to the SCM
         supra_centrality = np.zeros((NT, NT))
-
         # Get indices for diagonal blocks
         idx = np.arange(T) * N
-
         # Assign values using NumPy advanced indexing
         for t in range(T):
             supra_centrality[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(snapshot[:, :, t])
+
+        # Set the inter-layer similarity to the SCM
         if inter_layer_similarity is None:
-            ils = np.zeros((NT, NT))
+            inter_layer_similarity = np.zeros((NT, NT))
         elif isinstance(inter_layer_similarity, str):
-            if inter_layer_similarity not in ["F", "B", "FB", "BF"]:
-                raise ValueError("time_coupling must be one of the following: F, B, BF, FB")
-            ils = np.zeros((T,T))
-            if "F" in inter_layer_similarity:
-                ils += np.eye(T, k=1)
-            if "B" in inter_layer_similarity:
-                ils += np.eye(T, k=-1)
-            ils = np.kron(ils, np.eye(N))
-        elif isinstance(inter_layer_similarity, np.ndarray):
+            if inter_layer_similarity not in ["F", "B", "FB", "BF", "C"]:
+                raise ValueError("time_coupling must be one of the following: F, B, BF, FB, C")
+            if inter_layer_similarity == 'C':
+                # Create the block matrix using Kronecker product with identity matrix
+                inter_layer_similarity = np.triu(np.ones((T, T)), k=1)
+            else:
+                ils = np.zeros((T,T))
+                if "F" in inter_layer_similarity:
+                    ils += np.eye(T, k=1)
+                if "B" in inter_layer_similarity:
+                    ils += np.eye(T, k=-1)
+                inter_layer_similarity = ils
+        elif callable(inter_layer_similarity):
+            inter_layer_similarity = inter_layer_similarity(snapshot)
+
+        if isinstance(inter_layer_similarity, np.ndarray):
             if inter_layer_similarity.shape == (T, T):
                 ils = np.kron(inter_layer_similarity, np.eye(N))
             elif inter_layer_similarity.shape == (NT, NT):
                 ils = inter_layer_similarity
             else:
                 raise ValueError(f"Cannot use time_coupling of shape {inter_layer_similarity.shape}; must be either (T,T) or (NT, NT)")
-        elif callable(inter_layer_similarity):
-            ils = inter_layer_similarity(snapshot)
         else:
-            raise ValueError("Time coupling must be a numpy.ndarray or string")
+            raise ValueError("Time coupling must be a numpy.ndarray, callable or string (or None)")
         supra_centrality += ils
 
         self._supra = supra_centrality
