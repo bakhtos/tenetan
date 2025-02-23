@@ -1,1 +1,1 @@
-from .eigenvector import TaylorSupraMatrix, SupraAdjacencyMatrix
+from . import eigenvector
