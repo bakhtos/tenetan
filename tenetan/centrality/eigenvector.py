@@ -1,5 +1,6 @@
 import tensorly as tl
 import numpy as np
+from numpy.ma.core import diagonal
 
 
 class SupraAdjacencyMatrix:
@@ -47,6 +48,8 @@ class SupraAdjacencyMatrix:
                 diagonal_matrix = time_coupling
             else:
                 raise ValueError(f"Cannot use time_coupling of shape {time_coupling.shape}; must be either (T,T) or (NT, NT)")
+        elif callable(time_coupling):
+            diagonal_matrix = time_coupling(self._snapshot)
         else:
             raise ValueError("Time coupling must be a numpy.ndarray or string")
         supra_adjacency += diagonal_matrix
@@ -134,3 +137,51 @@ class YinSupraMatrix(SupraAdjacencyMatrix):
 
         self._supra += inter_layer_similarity
         del self._snapshot
+
+
+class LiuSupraMatrix(SupraAdjacencyMatrix):
+
+    def __init__(self, snapshot):
+        super().__init__(snapshot, time_coupling=LiuLayerSimilarity, centrality_function=LiuCentralityMatrix)
+
+
+def LiuLayerSimilarity(snapshot):
+    N = snapshot.shape[0]
+    T = snapshot.shape[2]
+    NT = N*T
+    # Compute numerator: sum over j of A[i,j,t] * A[i,j,t+1]
+    numerator = np.sum(snapshot[:, :, :-1] * snapshot[:, :, 1:], axis=1)  # Shape (N, T-1)
+
+    # Compute denominators separately
+    denominator_t1 = np.sum(snapshot[:, :, 1:], axis=1)  # Sum over j for A[i,j,t+1] (Shape: N, T-1)
+    denominator_t = np.sum(snapshot[:, :, :-1], axis=1)  # Sum over j for A[i,j,t] (Shape: N, T-1)
+
+    # Avoid division by zero
+    denominator_t1 = np.where(denominator_t1 == 0, 1e-10, denominator_t1)
+    denominator_t = np.where(denominator_t == 0, 1e-10, denominator_t)
+
+    # Compute S matrices
+    S_t_t1 = numerator / denominator_t1  # S_{i,t,t+1} uses denominator of t+1
+    S_t1_t = numerator / denominator_t  # S_{i,t+1,t} uses denominator of t
+
+    # Initialize the big NT x NT matrix
+    inter_layer_similarity = np.zeros((NT, NT))
+
+    # Place S_t_t1 at (t, t+1) and S_t1_t at (t+1, t)
+    for t in range(T - 1):
+        start_t = t * N
+        start_t1 = (t + 1) * N
+
+        inter_layer_similarity[start_t:start_t + N, start_t1:start_t1 + N] = np.diag(S_t_t1[:, t])  # t → t+1
+        inter_layer_similarity[start_t1:start_t1 + N, start_t:start_t + N] = np.diag(S_t1_t[:, t])  # t+1 → t
+    return inter_layer_similarity
+
+def LiuCentralityMatrix(A):
+    # Compute degrees (count non-zero elements in each row)
+    d = np.count_nonzero(A, axis=1)  # Shape (N,)
+
+    # Compute W using broadcasting
+    W = d[:, None] + d[None, :]  # Outer sum of degrees
+    # Set values to zero where A is zero
+    W[A == 0] = 0
+    return W
