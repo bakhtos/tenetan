@@ -31,6 +31,10 @@ class SnapshotGraph:
         self._vertex_index_mapping = {value: index for index, value in enumerate(new_value)}
 
     @property
+    def tensor(self):
+        return self._tensor
+
+    @property
     def timestamps(self):
         return self._timestamps
 

@@ -5,6 +5,11 @@ import numpy as np
 class SupraAdjacencyMatrix:
 
     def __init__(self, snapshot, time_coupling, epsilon=1.0, centrality_function=None):
+        self._cc = None
+        self._mlc = None
+        self._mnc = None
+        self._jc = None
+
         if centrality_function is None:
             centrality_function = lambda x: x
         N = snapshot.N
