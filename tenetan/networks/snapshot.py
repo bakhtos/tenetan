@@ -34,6 +34,14 @@ class SnapshotGraph:
     def timestamps(self):
         return self._timestamps
 
+    @property
+    def N(self):
+        return len(self._vertices)
+
+    @property
+    def T(self):
+        return len(self._timestamps)
+
     @timestamps.setter
     def timestamps(self, new_value):
         assert type(new_value) is list
