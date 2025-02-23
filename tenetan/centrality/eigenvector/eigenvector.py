@@ -21,7 +21,7 @@ class SupraAdjacencyMatrix:
         self._orig_N = N
         self._orig_T = T
         self._orig_NT = NT
-        self._snapshot = tl.to_numpy(snapshot.tensor)
+        snapshot = tl.to_numpy(snapshot.tensor)
 
         # Create an empty (N*T, N*T) matrix
         supra_adjacency = np.zeros((NT, NT))
@@ -31,7 +31,7 @@ class SupraAdjacencyMatrix:
 
         # Assign values using NumPy advanced indexing
         for t in range(T):
-            supra_adjacency[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(self._snapshot[:, :, t])
+            supra_adjacency[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(snapshot[:, :, t])
         if time_coupling is None:
             diagonal_matrix = np.zeros((NT, NT))
         elif isinstance(time_coupling, str):
@@ -51,7 +51,7 @@ class SupraAdjacencyMatrix:
             else:
                 raise ValueError(f"Cannot use time_coupling of shape {time_coupling.shape}; must be either (T,T) or (NT, NT)")
         elif callable(time_coupling):
-            diagonal_matrix = time_coupling(self._snapshot)
+            diagonal_matrix = time_coupling(snapshot)
         else:
             raise ValueError("Time coupling must be a numpy.ndarray or string")
         supra_adjacency += diagonal_matrix
@@ -74,6 +74,16 @@ class SupraAdjacencyMatrix:
         self._mnc = np.sum(self._jc, axis=1)
         self._mlc = np.sum(self._jc, axis=0)
         self._cc = self._jc / self._mlc
+
+
+    @property
+    def supracentrality_matrix(self):
+        return self._supra
+
+
+    @property
+    def scm(self):
+        return self._supra
 
 
     @property
@@ -113,7 +123,6 @@ class TaylorSupraMatrix(SupraAdjacencyMatrix):
 
     def __init__(self, snapshot, epsilon=1.0, centrality_function=None):
         super().__init__(snapshot, time_coupling='FB', centrality_function=centrality_function, epsilon=epsilon)
-        del self._snapshot
 
 
 class YinSupraMatrix(SupraAdjacencyMatrix):
