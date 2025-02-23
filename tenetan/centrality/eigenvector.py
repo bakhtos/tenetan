@@ -1,6 +1,5 @@
 import tensorly as tl
 import numpy as np
-from numpy.ma.core import diagonal
 
 
 class SupraAdjacencyMatrix:
@@ -116,27 +115,29 @@ class TaylorSupraMatrix(SupraAdjacencyMatrix):
 
 class YinSupraMatrix(SupraAdjacencyMatrix):
 
-    def __init__(self, snapshot, centrality_function=None):
-        super().__init__(snapshot, time_coupling=None, centrality_function=centrality_function)
+    def __init__(self, snapshot):
+        super().__init__(snapshot, time_coupling=YinLayerSimilarity)
 
-        N = self._orig_N
-        T = self._orig_T
-        NT = self._orig_NT
-        # Compute C[j, t] for all j and t
-        C_j_t = np.sum(self._snapshot[:, :, :-1] * self._snapshot[:, :, 1:], axis=0)  # Shape (N, T-1)
-        # Initialize the big NT x NT matrix
-        inter_layer_similarity = np.zeros((NT, NT))
 
-        # Place C_j_t at off-diagonal (t, t+1) and (t+1, t) positions
-        for t in range(T - 1):
-            start_t = t * N
-            start_t1 = (t + 1) * N
+def YinLayerSimilarity(snapshot):
+    N = snapshot.shape[0]
+    T = snapshot.shape[2]
+    NT = N*T
 
-            inter_layer_similarity[start_t:start_t + N, start_t1:start_t1 + N] = np.diag(C_j_t[:, t])  # t to t+1
-            inter_layer_similarity[start_t1:start_t1 + N, start_t:start_t + N] = np.diag(C_j_t[:, t])  # t+1 to t
+    # Compute C[j, t] for all j and t
+    C_j_t = np.sum(snapshot[:, :, :-1] * snapshot[:, :, 1:], axis=0)  # Shape (N, T-1)
+    # Initialize the big NT x NT matrix
+    inter_layer_similarity = np.zeros((NT, NT))
 
-        self._supra += inter_layer_similarity
-        del self._snapshot
+    # Place C_j_t at off-diagonal (t, t+1) and (t+1, t) positions
+    for t in range(T - 1):
+        start_t = t * N
+        start_t1 = (t + 1) * N
+
+        inter_layer_similarity[start_t:start_t + N, start_t1:start_t1 + N] = np.diag(C_j_t[:, t])  # t to t+1
+        inter_layer_similarity[start_t1:start_t1 + N, start_t:start_t + N] = np.diag(C_j_t[:, t])  # t+1 to t
+
+    return inter_layer_similarity
 
 
 class LiuSupraMatrix(SupraAdjacencyMatrix):
