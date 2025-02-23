@@ -29,17 +29,26 @@ class SupraAdjacencyMatrix:
         # Assign values using NumPy advanced indexing
         for t in range(T):
             supra_adjacency[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(self._snapshot[:, :, t])
-        if isinstance(time_coupling, str):
+        if time_coupling is None:
+            diagonal_matrix = np.zeros((NT, NT))
+        elif isinstance(time_coupling, str):
+            if time_coupling not in ["F", "B", "FB", "BF"]:
+                raise ValueError("time_coupling must be one of the following: F, B, BF, FB")
             diagonal_matrix = np.zeros((T,T))
             if "F" in time_coupling:
                 diagonal_matrix += np.eye(T, k=1)
             if "B" in time_coupling:
                 diagonal_matrix += np.eye(T, k=-1)
             diagonal_matrix = np.kron(diagonal_matrix, np.eye(N))
-        elif time_coupling is None:
-            diagonal_matrix = np.zeros((NT, NT))
+        elif isinstance(time_coupling, np.ndarray):
+            if time_coupling.shape == (T, T):
+                diagonal_matrix = np.kron(time_coupling, np.eye(N))
+            elif time_coupling.shape == (NT, NT):
+                diagonal_matrix = time_coupling
+            else:
+                raise ValueError(f"Cannot use time_coupling of shape {time_coupling.shape}; must be either (T,T) or (NT, NT)")
         else:
-            diagonal_matrix = time_coupling
+            raise ValueError("Time coupling must be a numpy.ndarray or string")
         supra_adjacency += diagonal_matrix
 
         self._supra = supra_adjacency
