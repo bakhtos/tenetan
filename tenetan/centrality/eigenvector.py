@@ -1,18 +1,43 @@
 import tensorly as tl
 import numpy as np
-from abc import ABC
 
 
-class SupraAdjacencyMatrix(ABC):
+class SupraAdjacencyMatrix:
 
-    def __init__(self):
-        self._supra = None
-        self._jc = None
-        self._mnc = None
-        self._mlc = None
-        self._cc = None
-        self._orig_T = None
-        self._orig_N = None
+    def __init__(self, snapshot, time_coupling, epsilon=1.0, centrality_function=None):
+        if centrality_function is None:
+            centrality_function = lambda x: x
+        N = snapshot.N
+        T = snapshot.T
+        NT = N*T
+        self._orig_N = N
+        self._orig_T = T
+        self._orig_NT = NT
+        self._snapshot = tl.to_numpy(snapshot.tensor)
+
+        # Create an empty (N*T, N*T) matrix
+        supra_adjacency = np.zeros((NT, NT))
+
+        # Get indices for diagonal blocks
+        idx = np.arange(T) * N
+
+        # Assign values using NumPy advanced indexing
+        for t in range(T):
+            supra_adjacency[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(self._snapshot[:, :, t])
+        if isinstance(time_coupling, str):
+            diagonal_matrix = np.zeros((T,T))
+            if "F" in time_coupling:
+                diagonal_matrix += np.eye(T, k=1)
+            if "B" in time_coupling:
+                diagonal_matrix += np.eye(T, k=-1)
+            diagonal_matrix = np.kron(diagonal_matrix, np.eye(N))
+        elif time_coupling is None:
+            diagonal_matrix = np.zeros((NT, NT))
+        else:
+            diagonal_matrix = time_coupling
+        supra_adjacency += diagonal_matrix
+
+        self._supra = supra_adjacency
 
     def compute_centrality(self):
         # Compute eigenvalues and eigenvectors
@@ -67,33 +92,31 @@ class SupraAdjacencyMatrix(ABC):
 
 class TaylorSupraMatrix(SupraAdjacencyMatrix):
 
-    def __init__(self, snapshot, epsilon=1.0, time_coupling="FB", centrality_function=None):
-        super().__init__()
-        if centrality_function is None:
-            centrality_function = lambda x: x
-        N = snapshot.N
-        T = snapshot.T
-        self._orig_N = N
-        self._orig_T = T
-        snapshot = tl.to_numpy(snapshot._tensor)
+    def __init__(self, snapshot, epsilon=1.0, centrality_function=None):
+        super().__init__(snapshot, time_coupling='FB', centrality_function=centrality_function, epsilon=epsilon)
+        del self._snapshot
 
-        # Create an empty (N*T, N*T) matrix
-        block_diag_matrix = np.zeros((N * T, N * T))
 
-        # Get indices for diagonal blocks
-        idx = np.arange(T) * N
+class YinSupraMatrix(SupraAdjacencyMatrix):
 
-        # Assign values using NumPy advanced indexing
-        for t in range(T):
-            block_diag_matrix[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(snapshot[:, :, t])
-        if isinstance(time_coupling, str):
-            diagonal_matrix = np.zeros((T,T))
-            if "F" in time_coupling:
-                diagonal_matrix += np.eye(T, k=1)
-            if "B" in time_coupling:
-                diagonal_matrix += np.eye(T, k=-1)
-        else:
-            diagonal_matrix = time_coupling
-        block_diag_matrix += np.kron(diagonal_matrix, np.eye(N))
+    def __init__(self, snapshot, centrality_function=None):
+        super().__init__(snapshot, time_coupling=None, centrality_function=centrality_function)
 
-        self._supra = block_diag_matrix
+        N = self._orig_N
+        T = self._orig_T
+        NT = self._orig_NT
+        # Compute C[j, t] for all j and t
+        C_j_t = np.sum(self._snapshot[:, :, :-1] * self._snapshot[:, :, 1:], axis=0)  # Shape (N, T-1)
+        # Initialize the big NT x NT matrix
+        inter_layer_similarity = np.zeros((NT, NT))
+
+        # Place C_j_t at off-diagonal (t, t+1) and (t+1, t) positions
+        for t in range(T - 1):
+            start_t = t * N
+            start_t1 = (t + 1) * N
+
+            inter_layer_similarity[start_t:start_t + N, start_t1:start_t1 + N] = np.diag(C_j_t[:, t])  # t to t+1
+            inter_layer_similarity[start_t1:start_t1 + N, start_t:start_t + N] = np.diag(C_j_t[:, t])  # t+1 to t
+
+        self._supra += inter_layer_similarity
+        del self._snapshot
