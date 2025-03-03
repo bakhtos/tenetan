@@ -1,8 +1,10 @@
 from .centrality_function import LiuCentralityFunction
-from .layer_similarity import YinLayerSimilarity, LiuLayerSimilarity
+from .layer_similarity import YinLayerSimilarity, LiuLayerSimilarity, HuangLayerSimilarity
 
 import tensorly as tl
 import numpy as np
+
+__all__ = ["SupraAdjacencyMatrix", "TaylorSupraMatrix", "LiuSupraMatrix", "YinSupraMatrix", "HuangSupraMatrix"]
 
 
 class SupraAdjacencyMatrix:
@@ -142,4 +144,7 @@ class LiuSupraMatrix(SupraAdjacencyMatrix):
     def __init__(self, snapshot):
         super().__init__(snapshot, inter_layer_similarity=LiuLayerSimilarity, centrality_function=LiuCentralityFunction)
 
+class HuangSupraMatrix(SupraAdjacencyMatrix):
 
+    def __init__(self, snapshot):
+        super().__init__(snapshot, inter_layer_similarity=HuangLayerSimilarity)

@@ -1,3 +1,4 @@
-from .eigenvector import TaylorSupraMatrix, SupraAdjacencyMatrix, YinSupraMatrix, LiuSupraMatrix
+from .eigenvector import TaylorSupraMatrix, SupraAdjacencyMatrix, YinSupraMatrix, LiuSupraMatrix, HuangSupraMatrix
 
-__all__ = ["SupraAdjacencyMatrix", "TaylorSupraMatrix", "LiuSupraMatrix", "YinSupraMatrix", "layer_similarity", "centrality_function"]
+__all__ = ["SupraAdjacencyMatrix", "TaylorSupraMatrix", "LiuSupraMatrix", "YinSupraMatrix", "HuangSupraMatrix",
+           "layer_similarity", "centrality_function"]
