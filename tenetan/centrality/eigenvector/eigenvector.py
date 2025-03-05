@@ -3,6 +3,7 @@ from .layer_similarity import YinLayerSimilarity, LiuLayerSimilarity, HuangLayer
 
 import tensorly as tl
 import numpy as np
+from scipy.linalg import eigh, pinv
 
 __all__ = ["SupraAdjacencyMatrix", "TaylorSupraMatrix", "LiuSupraMatrix", "YinSupraMatrix", "HuangSupraMatrix"]
 
@@ -132,6 +133,98 @@ class TaylorSupraMatrix(SupraAdjacencyMatrix):
         super().__init__(snapshot, inter_layer_similarity='FB', centrality_function=centrality_function,
                          epsilon=epsilon)
 
+        self._tac = None
+        self._fom = None
+
+    def zero_first_order_expansion(self, fom=True):
+        """Compute the time-averaged centrality and first-order mover scores.
+        """
+
+        C =self._supra
+        NT = self._orig_NT
+        T = self._orig_T
+        N = self._orig_N
+
+        # Timed-averaged centralities (zeroth order expansion)
+        # Step 1: Compute X^(1) using Eq. (4.14)
+        X1 = np.zeros((N, N))
+        sin_vector = []
+        gamma1 = 0.0
+        for t in range(T):
+            sin_factor = np.sin(np.pi * (t + 1) / (T + 1))
+            sin_vector.append(sin_factor)
+            sin_factor = sin_factor ** 2
+            gamma1 += sin_factor
+            C_t = C[t * N:(t + 1) * N, t * N:(t + 1) * N]  # Extract N×N block at time t
+            X1 += C_t * sin_factor  # Apply the weighting
+
+        X1 /= gamma1  # Normalize
+
+        # Step 2: Solve eigenvector equation X^(1) alpha = λ1 alpha
+        eigenvalues, eigenvectors = eigh(X1)  # Compute all eigenvalues & eigenvectors
+        lambda1 = eigenvalues[-1]  # Largest eigenvalue (last element)
+        alpha = eigenvectors[:, -1]  # Corresponding eigenvector (last column)
+
+        self._tac = alpha
+
+        if not fom:
+            return
+
+        # First-order-mover scores (first order expansion)
+        # Step 3: Compute X^(2) using Eq. (4.22)
+        A = np.zeros((T, T))  # Inter-layer coupling matrix (undirected chain)
+        for t in range(T - 1):
+            A[t, t + 1] = A[t + 1, t] = 1  # Connect layers sequentially
+
+        lambda0 = np.max(eigh(A, eigvals_only=True))  # Leading eigenvalue of A
+        L0 = pinv(lambda0 * np.eye(T) - A)  # Compute (λ0 I - A)†
+        L0_pinv = np.kron(L0, np.eye(N))  # Compute L_0 = (λ0 I - A)† ⊗ I
+
+        G = np.zeros((NT, NT))
+        for t in range(T):
+            block = C[t * N:(t + 1) * N, t * N:(t + 1) * N]  # Extract diagonal block
+            G[t * N:(t + 1) * N, t * N:(t + 1) * N] = block  # Place in G
+
+        u = np.array(sin_vector) / np.sqrt(gamma1)
+        U_matrix = np.zeros((NT, N))  # Store all u_i vectors
+        for i in range(N):
+            U_matrix[i * T:(i + 1) * T, i] = u  # Set u in the correct block
+
+        X2 = np.zeros((N, N))
+        for i in range(N):
+            for j in range(N):
+                # Construct block vectors u_i and u_j
+                u_i = U_matrix[:, i]  # Precomputed u_i
+                u_j = U_matrix[:, j]  # Precomputed u_j
+
+                X2[i, j] = u_i.T @ G @ L0_pinv @ G @ u_j
+
+        # Step 4: Compute first-order correction beta
+        lambda2 = alpha.T @ X2 @ alpha  # Compute λ2
+        beta = np.linalg.solve(X1 - lambda1 * np.eye(N), (lambda2 * np.eye(N) - X2) @ alpha)
+
+        # Step 5: Compute first-order mover scores
+        v0 = U_matrix @ alpha  # Compute v0
+        L0_G_v0 = L0_pinv @ G @ v0  # Compute L0† G v0
+        mover_scores = np.sqrt(beta ** 2 + np.sum(L0_G_v0.reshape(N, T) ** 2, axis=1))  # Compute final scores
+
+        self._fom = mover_scores
+
+    @property
+    def tac(self):
+        return self._tac
+
+    @property
+    def time_averaged_centrality(self):
+        return self._tac
+
+    @property
+    def fom(self):
+        return self._fom
+
+    @property
+    def first_order_mover_scores(self):
+        return self._fom
 
 class YinSupraMatrix(SupraAdjacencyMatrix):
 
