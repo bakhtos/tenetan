@@ -3,7 +3,7 @@ from .layer_similarity import YinLayerSimilarity, LiuLayerSimilarity, HuangLayer
 
 import tensorly as tl
 import numpy as np
-from scipy.linalg import eigh, pinv
+from scipy.linalg import eigh, pinv, LinAlgError
 
 __all__ = ["SupraAdjacencyMatrix", "TaylorSupraMatrix", "LiuSupraMatrix", "YinSupraMatrix", "HuangSupraMatrix"]
 
@@ -15,6 +15,9 @@ class SupraAdjacencyMatrix:
         self._mlc = None
         self._mnc = None
         self._jc = None
+
+        self._tac = None
+        self._fom = None
 
         if centrality_function is None:
             centrality_function = lambda x: x
@@ -127,39 +130,29 @@ class SupraAdjacencyMatrix:
     def cc(self):
         return self._cc
 
-
-class TaylorSupraMatrix(SupraAdjacencyMatrix):
-
-    def __init__(self, snapshot, epsilon=1.0, centrality_function=None):
-        super().__init__(snapshot, inter_layer_similarity='FB', centrality_function=centrality_function,
-                         epsilon=epsilon)
-
-        self._tac = None
-        self._fom = None
-
     def zero_first_order_expansion(self, fom=True):
         """Compute the time-averaged centrality and first-order mover scores.
         """
 
-        C =self._supra
         NT = self._orig_NT
         T = self._orig_T
         N = self._orig_N
 
         # Timed-averaged centralities (zeroth order expansion)
         # Step 1: Compute X^(1) using Eq. (4.14)
-        X1 = np.zeros((N, N))
-        sin_vector = []
-        gamma1 = 0.0
-        for t in range(T):
-            sin_factor = np.sin(np.pi * (t + 1) / (T + 1))
-            sin_vector.append(sin_factor)
-            sin_factor = sin_factor ** 2
-            gamma1 += sin_factor
-            C_t = C[t * N:(t + 1) * N, t * N:(t + 1) * N]  # Extract N×N block at time t
-            X1 += C_t * sin_factor  # Apply the weighting
+        A = self._inter_layer_similarity
 
-        X1 /= gamma1  # Normalize
+        if A.shape != (T,T):
+            raise LinAlgError("TAC and FOM scores can only be computed if inter_layer_similarity is (T,T) matrix")
+
+        lambda0, u, X1 = self._eig_layer_similarity()
+
+        U_matrix = np.zeros((NT, N))  # Store all u_i vectors
+        for i in range(N):
+            U_matrix[i * T:(i + 1) * T, i] = u  # Set u in the correct block
+
+        if X1 is None:
+            X1 = self._X1(U_matrix)
 
         # Step 2: Solve eigenvector equation X^(1) alpha = λ1 alpha
         eigenvalues, eigenvectors = eigh(X1)  # Compute all eigenvalues & eigenvectors
@@ -173,16 +166,9 @@ class TaylorSupraMatrix(SupraAdjacencyMatrix):
 
         # First-order-mover scores (first order expansion)
         # Step 3: Compute X^(2) using Eq. (4.22)
-        A = self._inter_layer_similarity
-        lambda0 = 2 * np.cos(np.pi / (T + 1))  # Directly from Eq. (4.4)
         L0 = pinv(lambda0 * np.eye(T) - A)  # Compute (λ0 I - A)†
         L0_pinv = np.kron(L0, np.eye(N))  # Compute L_0 = (λ0 I - A)† ⊗ I
 
-
-        u = np.array(sin_vector) / np.sqrt(gamma1)
-        U_matrix = np.zeros((NT, N))  # Store all u_i vectors
-        for i in range(N):
-            U_matrix[i * T:(i + 1) * T, i] = u  # Set u in the correct block
 
         G = self._centrality_matrix
         X2 = np.zeros((N, N))
@@ -205,6 +191,21 @@ class TaylorSupraMatrix(SupraAdjacencyMatrix):
 
         self._fom = mover_scores
 
+    def _eig_layer_similarity(self):
+        eigenvalues_A, eigenvectors_A = eigh(self._inter_layer_similarity)
+        u = eigenvectors_A[:, -1]  # Take the eigenvector corresponding to the largest eigenvalue
+        u /= np.linalg.norm(u)  # Normalize
+        lambda0 = eigenvalues_A[-1]
+        return lambda0, u, None
+
+    def _X1(self, U_matrix):
+        N = self._orig_N
+        X1 = np.zeros((N, N))
+        for i in range(N):
+            for j in range(N):
+                X1[i, j] = U_matrix[:, i].T @ self._centrality_matrix @ U_matrix[:, j]
+        return X1
+
     @property
     def tac(self):
         return self._tac
@@ -220,6 +221,36 @@ class TaylorSupraMatrix(SupraAdjacencyMatrix):
     @property
     def first_order_mover_scores(self):
         return self._fom
+
+
+
+class TaylorSupraMatrix(SupraAdjacencyMatrix):
+
+    def __init__(self, snapshot, epsilon=1.0, centrality_function=None):
+        super().__init__(snapshot, inter_layer_similarity='FB', centrality_function=centrality_function,
+                         epsilon=epsilon)
+
+
+    def _eig_layer_similarity(self):
+        T = self._orig_T
+        N = self._orig_N
+
+        lambda0 = 2 * np.cos(np.pi / (T + 1))  # Directly from Eq. (4.4)
+        X1 = np.zeros((N, N))
+        sin_vector = []
+        gamma1 = 0.0
+        for t in range(T):
+            sin_factor = np.sin(np.pi * (t + 1) / (T + 1))
+            sin_vector.append(sin_factor)
+            sin_factor = sin_factor ** 2
+            gamma1 += sin_factor
+            C_t = self._supra[t * N:(t + 1) * N, t * N:(t + 1) * N]  # Extract N×N block at time t
+            X1 += C_t * sin_factor  # Apply the weighting
+
+        X1 /= gamma1  # Normalize
+        u = np.array(sin_vector) / np.sqrt(gamma1)
+        return lambda0, u, X1
+
 
 class YinSupraMatrix(SupraAdjacencyMatrix):
 
