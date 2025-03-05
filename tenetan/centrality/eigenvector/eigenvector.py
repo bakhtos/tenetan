@@ -5,6 +5,8 @@ import tensorly as tl
 import numpy as np
 from scipy.linalg import eigh, pinv, LinAlgError
 
+from typing import final
+
 __all__ = ["SupraAdjacencyMatrix", "TaylorSupraMatrix", "LiuSupraMatrix", "YinSupraMatrix", "HuangSupraMatrix"]
 
 
@@ -70,6 +72,7 @@ class SupraAdjacencyMatrix:
         self._inter_layer_similarity = inter_layer_similarity
         self._supra = centrality_matrix + ils
 
+    @final
     def compute_centrality(self):
         # Compute eigenvalues and eigenvectors
         eigenvalues, eigenvectors = np.linalg.eig(self._supra)
@@ -130,6 +133,7 @@ class SupraAdjacencyMatrix:
     def cc(self):
         return self._cc
 
+    @final
     def zero_first_order_expansion(self, fom=True):
         """Compute the time-averaged centrality and first-order mover scores.
         """
@@ -198,6 +202,7 @@ class SupraAdjacencyMatrix:
         lambda0 = eigenvalues_A[-1]
         return lambda0, u, None
 
+    @final
     def _X1(self, U_matrix):
         N = self._orig_N
         X1 = np.zeros((N, N))
@@ -224,6 +229,7 @@ class SupraAdjacencyMatrix:
 
 
 
+@final
 class TaylorSupraMatrix(SupraAdjacencyMatrix):
 
     def __init__(self, snapshot, epsilon=1.0, centrality_function=None):
@@ -252,17 +258,20 @@ class TaylorSupraMatrix(SupraAdjacencyMatrix):
         return lambda0, u, X1
 
 
+@final
 class YinSupraMatrix(SupraAdjacencyMatrix):
 
     def __init__(self, snapshot):
         super().__init__(snapshot, inter_layer_similarity=YinLayerSimilarity)
 
 
+@final
 class LiuSupraMatrix(SupraAdjacencyMatrix):
 
     def __init__(self, snapshot):
         super().__init__(snapshot, inter_layer_similarity=LiuLayerSimilarity, centrality_function=LiuCentralityFunction)
 
+@final
 class HuangSupraMatrix(SupraAdjacencyMatrix):
 
     def __init__(self, snapshot):
