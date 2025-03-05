@@ -27,12 +27,12 @@ class SupraAdjacencyMatrix:
         snapshot = tl.to_numpy(snapshot.tensor)
 
         # Set centrality (adjacency) matrices to the SCM
-        supra_centrality = np.zeros((NT, NT))
+        centrality_matrix = np.zeros((NT, NT))
         # Get indices for diagonal blocks
         idx = np.arange(T) * N
         # Assign values using NumPy advanced indexing
         for t in range(T):
-            supra_centrality[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(snapshot[:, :, t])
+            centrality_matrix[idx[t]:idx[t] + N, idx[t]:idx[t] + N] = epsilon*centrality_function(snapshot[:, :, t])
 
         # Set the inter-layer similarity to the SCM
         if inter_layer_similarity is None:
@@ -62,9 +62,10 @@ class SupraAdjacencyMatrix:
                 raise ValueError(f"Cannot use time_coupling of shape {inter_layer_similarity.shape}; must be either (T,T) or (NT, NT)")
         else:
             raise ValueError("Time coupling must be a numpy.ndarray, callable or string (or None)")
-        supra_centrality += ils
 
-        self._supra = supra_centrality
+        self._centrality_matrix = centrality_matrix
+        self._inter_layer_similarity = inter_layer_similarity
+        self._supra = centrality_matrix + ils
 
     def compute_centrality(self):
         # Compute eigenvalues and eigenvectors
@@ -172,24 +173,18 @@ class TaylorSupraMatrix(SupraAdjacencyMatrix):
 
         # First-order-mover scores (first order expansion)
         # Step 3: Compute X^(2) using Eq. (4.22)
-        A = np.zeros((T, T))  # Inter-layer coupling matrix (undirected chain)
-        for t in range(T - 1):
-            A[t, t + 1] = A[t + 1, t] = 1  # Connect layers sequentially
-
-        lambda0 = np.max(eigh(A, eigvals_only=True))  # Leading eigenvalue of A
+        A = self._inter_layer_similarity
+        lambda0 = 2 * np.cos(np.pi / (T + 1))  # Directly from Eq. (4.4)
         L0 = pinv(lambda0 * np.eye(T) - A)  # Compute (λ0 I - A)†
         L0_pinv = np.kron(L0, np.eye(N))  # Compute L_0 = (λ0 I - A)† ⊗ I
 
-        G = np.zeros((NT, NT))
-        for t in range(T):
-            block = C[t * N:(t + 1) * N, t * N:(t + 1) * N]  # Extract diagonal block
-            G[t * N:(t + 1) * N, t * N:(t + 1) * N] = block  # Place in G
 
         u = np.array(sin_vector) / np.sqrt(gamma1)
         U_matrix = np.zeros((NT, N))  # Store all u_i vectors
         for i in range(N):
             U_matrix[i * T:(i + 1) * T, i] = u  # Set u in the correct block
 
+        G = self._centrality_matrix
         X2 = np.zeros((N, N))
         for i in range(N):
             for j in range(N):
