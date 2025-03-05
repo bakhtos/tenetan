@@ -10,25 +10,29 @@ description = "Temporal Network Analysis Library"
 readme = "README.md"
 license = {file = "LICENSE"}
 keywords = [
-    "network",
-    "graph",
-    "temporal network",
-    "temporal graph"]
+    "networks",
+    "graphs",
+    "temporal networks",
+    "temporal graphs",
+    "complex networks",
+    "time-evolving networks"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.10",
     "Topic :: Scientific/Engineering :: Mathematics"]
 
-version = "0.2.0"
-requires-python = ">=3.6"
+version = "0.3.0"
+requires-python = ">=3.10"
 dependencies = [
     "tensorly==0.8.1",
     "TLViz==0.1.1",
-    "pandas"]
+    "pandas",
+    "scipy",
+    "statsmodels>=0.12.0"]
 
 [project.urls]
 Homepage = "https://github.com/bakhtos/tenetan"
