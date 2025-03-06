@@ -31,7 +31,8 @@ def PARAFAC_NN_ALS(network: SnapshotGraph, n_communities: int, /, *to_return, **
         to_return = ('in_communities', 'out_communities', 'raw_temporal_activity')
     tensorly_kwargs['return_errors'] = True
 
-    cp_tensor, errors = tl.decomposition.non_negative_parafac_hals(network._tensor, n_communities, **tensorly_kwargs)
+    tensor = tl.tensor(network.tensor)
+    cp_tensor, errors = tl.decomposition.non_negative_parafac_hals(tensor, n_communities, **tensorly_kwargs)
     in_communities, out_communities, raw_temporal_activity = cp_tensor.factors
 
     #  Construct output

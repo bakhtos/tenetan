@@ -1,7 +1,6 @@
 from .centrality_function import LiuCentralityFunction
 from .layer_similarity import YinLayerSimilarity, LiuLayerSimilarity, HuangLayerSimilarity
 
-import tensorly as tl
 import numpy as np
 from scipy.linalg import eigh, pinv, LinAlgError
 
@@ -29,7 +28,7 @@ class SupraAdjacencyMatrix:
         self._orig_N = N
         self._orig_T = T
         self._orig_NT = NT
-        snapshot = tl.to_numpy(snapshot.tensor)
+        snapshot = snapshot.tensor
 
         # Set centrality (adjacency) matrices to the SCM
         centrality_matrix = np.zeros((NT, NT))

@@ -3,7 +3,6 @@ import json
 import os.path
 import pathlib
 
-import tensorly as tl
 import numpy as np
 
 from typing import Any
@@ -31,7 +30,7 @@ class SnapshotGraph:
                         raise ValueError(f"SnapshotNetwork can be initialized from an (N,N,T) 3D array, received array with shape {tensor.shape}")
                     N = tensor.shape[0]
                     T = tensor.shape[2]
-                    self._tensor = tl.tensor(tensor)
+                    self._tensor = tensor.copy()
                     self._vertices = list(range(N))
                     self._timestamps = list(range(T))
                     self._vertex_index_mapping = {i: i for i in range(N)}
@@ -87,7 +86,7 @@ class SnapshotGraph:
         timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
         max_vertex = len(vertex_list)
         max_time = len(timestamp_list)
-        tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
+        tensor = np.full((max_vertex, max_vertex, max_time), 0.0, dtype=dtype)
         for i, j, t, w in edge_list:
             i = vertex_index_mapping[i]
             j = vertex_index_mapping[j]
@@ -96,7 +95,7 @@ class SnapshotGraph:
             tensor[i, j, t] = w
             if directed is False:
                 tensor[j, i, t] = w
-        self._tensor = tl.tensor(tensor, dtype=dtype)
+        self._tensor = tensor
         self._vertices = vertex_list
         self._timestamps = timestamp_list
         self._vertex_index_mapping = vertex_index_mapping

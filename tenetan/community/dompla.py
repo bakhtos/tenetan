@@ -49,7 +49,7 @@ def DOMPLA(
     if inflation <= 1.0:
         raise ValueError("Inflation must be above 1.0")
 
-    A = tl.to_numpy(G.tensor)
+    A = G.tensor.copy()
     N, T = G.N, G.T
 
     communities: List[Dict[int, List[Any]]] = []
