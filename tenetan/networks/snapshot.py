@@ -96,6 +96,18 @@ class SnapshotGraph:
         self._vertices = new_order
         self._vertex_index_mapping = {value: index for index, value in enumerate(new_order)}
 
+    def rename_vertex(self, old_vertex, new_vertex):
+        i = self._vertex_index_mapping[old_vertex]
+        self._vertices[i] = new_vertex
+        self._vertex_index_mapping[new_vertex] = i
+        del self._vertex_index_mapping[old_vertex]
+
+    def rename_timestamp(self, old_timestamp, new_timestamp):
+        i = self._timestamp_index_mapping[old_timestamp]
+        self._timestamps[i] = new_timestamp
+        self._timestamp_index_mapping[new_timestamp] = i
+        del self._timestamp_index_mapping[old_timestamp]
+
     def load_edge_list(self, edge_list, vertex_list, timestamp_list,
                        directed=True, dtype=np.float32):
         vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
