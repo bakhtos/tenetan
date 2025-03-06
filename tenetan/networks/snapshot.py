@@ -47,6 +47,10 @@ class SnapshotGraph:
 
 
     @property
+    def tensor(self):
+        return self._tensor
+
+    @property
     def vertices(self):
         return self._vertices
 
@@ -57,13 +61,17 @@ class SnapshotGraph:
         self._vertices = new_value
         self._vertex_index_mapping = {value: index for index, value in enumerate(new_value)}
 
-    @property
-    def tensor(self):
-        return self._tensor
 
     @property
     def timestamps(self):
         return self._timestamps
+
+    @timestamps.setter
+    def timestamps(self, new_value):
+        assert type(new_value) is list
+        assert len(self._timestamps) == len(new_value)
+        self._timestamps = new_value
+        self._timestamp_index_mapping = {value: index for index, value in enumerate(new_value)}
 
     @property
     def N(self):
@@ -73,21 +81,40 @@ class SnapshotGraph:
     def T(self):
         return len(self._timestamps)
 
-    @timestamps.setter
-    def timestamps(self, new_value):
-        assert type(new_value) is list
-        assert len(self._timestamps) == len(new_value)
-        self._timestamps = new_value
-        self._timestamp_index_mapping = {value: index for index, value in enumerate(new_value)}
+    def load_edge_list(self, edge_list, vertex_list, timestamp_list,
+                       directed=True, dtype=np.float32):
+        vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
+        timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
+        max_vertex = len(vertex_list)
+        max_time = len(timestamp_list)
+        tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
+        for i, j, t, w in edge_list:
+            i = vertex_index_mapping[i]
+            j = vertex_index_mapping[j]
+            t = timestamp_index_mapping[t]
+            w = float(w)
+            tensor[i, j, t] = w
+            if directed is False:
+                tensor[j, i, t] = w
+        self._tensor = tl.tensor(tensor, dtype=dtype)
+        self._vertices = vertex_list
+        self._timestamps = timestamp_list
+        self._vertex_index_mapping = vertex_index_mapping
+        self._timestamp_index_mapping = timestamp_index_mapping
 
     def load_csv(self, csv_file, /, *, source='source', target='target', timestamp='timestamp', weight='weight',
                        directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
         self._load_csv_list([csv_file], source=source, target=target, timestamp=timestamp, weight=weight,
                             directed=directed, dtype=dtype, sort_timestamps=sort_timestamps, sort_vertices=sort_vertices)
 
+    def load_csv_directory(self, csv_dir, /, *, source='source', target='target', weight='weight',
+                           directed=True, dtype=np.float32, sort_vertices=False):
+        csv_files = [file for file in sorted(os.listdir(csv_dir))]
+        self._load_csv_list(csv_files, source=source, target=target, weight=weight, directed=directed,
+                            dtype=dtype, sort_vertices=sort_vertices, timestamp=None, sort_timestamps=False)
+
     def _load_csv_list(self, csv_list, /, *, source='source', target='target', timestamp=None, weight='weight',
                  directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
-
 
         rows = []
         vertex_set = set()
@@ -111,12 +138,6 @@ class SnapshotGraph:
         timestamp_list.sort() if sort_timestamps else None
         self.load_edge_list(rows, vertex_list, timestamp_list, directed, dtype)
 
-    def load_csv_directory(self, csv_dir, /, *, source='source', target='target', weight='weight',
-                           directed=True, dtype=np.float32, sort_vertices=False):
-        csv_files = [file for file in sorted(os.listdir(csv_dir))]
-        self._load_csv_list(csv_files, source=source, target=target, weight=weight, directed=directed,
-                          dtype=dtype, sort_vertices=sort_vertices, timestamp=None, sort_timestamps=False)
-
     def write_csv(self, path, /, *, source='source', target='target',
                   timestamp='timestamp', weight='weight'):
 
@@ -133,7 +154,6 @@ class SnapshotGraph:
             writer = csv.writer(file)
             writer.writerow(csv_header)
             writer.writerows(csv_rows)
-
 
     def load_json(self, json_file, /, *, source='source', target='target', timestamp='timestamp',
                     weight='weight', nodes='nodes', edges='edges',
@@ -179,27 +199,6 @@ class SnapshotGraph:
         timestamp_list = list(timestamp_set)
         timestamp_list.sort() if sort_timestamps else None
         self.load_edge_list(rows, vertex_list, timestamp_list, directed, dtype)
-
-    def load_edge_list(self, edge_list, vertex_list, timestamp_list,
-                       directed=True, dtype=np.float32):
-        vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
-        timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
-        max_vertex = len(vertex_list)
-        max_time = len(timestamp_list)
-        tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
-        for i, j, t, w in edge_list:
-            i = vertex_index_mapping[i]
-            j = vertex_index_mapping[j]
-            t = timestamp_index_mapping[t]
-            w = float(w)
-            tensor[i, j, t] = w
-            if directed is False:
-                tensor[j, i, t] = w
-        self._tensor = tl.tensor(tensor, dtype=dtype)
-        self._vertices = vertex_list
-        self._timestamps = timestamp_list
-        self._vertex_index_mapping = vertex_index_mapping
-        self._timestamp_index_mapping = timestamp_index_mapping
 
     def write_json(self, path, /, *, source='source', target='target', timestamp='timestamp',
                   weight='weight', nodes='nodes', edges='edges'):
