@@ -80,6 +80,22 @@ class SnapshotGraph:
     def T(self):
         return len(self._timestamps)
 
+    def permute_timestamps(self, new_order):
+        assert type(new_order) is list
+        assert set(new_order) == set(self._timestamps)
+        permutation = [self._timestamp_index_mapping[timestamp] for timestamp in new_order]
+        self._tensor = self._tensor[:, :, permutation]
+        self._timestamps = new_order
+        self._timestamp_index_mapping = {value: index for index, value in enumerate(new_order)}
+
+    def permute_vertices(self, new_order):
+        assert type(new_order) is list
+        assert set(new_order) == set(self._vertices)
+        permutation = [self._vertex_index_mapping[vertex] for vertex in new_order]
+        self._tensor = self._tensor[permutation, :, :][:, permutation, :]
+        self._vertices = new_order
+        self._vertex_index_mapping = {value: index for index, value in enumerate(new_order)}
+
     def load_edge_list(self, edge_list, vertex_list, timestamp_list,
                        directed=True, dtype=np.float32):
         vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
