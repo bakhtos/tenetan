@@ -109,28 +109,11 @@ class SnapshotGraph:
         vertex_list.sort() if sort_vertices else None
         timestamp_list = list(timestamp_set)
         timestamp_list.sort() if sort_timestamps else None
-        vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
-        timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
-        max_vertex = len(vertex_list)
-        max_time = len(timestamp_list)
-        tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
-        for i, j, t, w in rows:
-            i = vertex_index_mapping[i]
-            j = vertex_index_mapping[j]
-            t = timestamp_index_mapping[t]
-            w = float(w)
-            tensor[i, j, t] = w
-            if directed is False:
-                tensor[j, i, t] = w
-        self._tensor = tl.tensor(tensor, dtype=dtype)
-        self._vertices = vertex_list
-        self._timestamps = timestamp_list
-        self._vertex_index_mapping = vertex_index_mapping
-        self._timestamp_index_mapping = timestamp_index_mapping
+        self.load_edge_list(rows, vertex_list, timestamp_list, directed, dtype)
 
-    def load_csv_directory(self, directory, /, *, source='source', target='target', weight='weight',
+    def load_csv_directory(self, csv_dir, /, *, source='source', target='target', weight='weight',
                            directed=True, dtype=np.float32, sort_vertices=False):
-        csv_files = [file for file in sorted(os.listdir(directory))]
+        csv_files = [file for file in sorted(os.listdir(csv_dir))]
         self._load_csv_list(csv_files, source=source, target=target, weight=weight, directed=directed,
                           dtype=dtype, sort_vertices=sort_vertices, timestamp=None, sort_timestamps=False)
 
@@ -152,78 +135,66 @@ class SnapshotGraph:
             writer.writerows(csv_rows)
 
 
-    def load_json(self, file, /, *, source='source', target='target',
-                            weight='weight', nodes='nodes', edges='edges',
-                            timestamp='timestamp',
-                            directed=True, dtype=np.float32,
-                            sort_vertices=False, sort_timestamps=False):
+    def load_json(self, json_file, /, *, source='source', target='target', timestamp='timestamp',
+                    weight='weight', nodes='nodes', edges='edges',
+                 directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
+        self._load_json_list([json_file], source=source, target=target, timestamp=timestamp, weight=weight,
+                             nodes=nodes, edges=edges,
+                            directed=directed, dtype=dtype, sort_timestamps=sort_timestamps, sort_vertices=sort_vertices)
 
-        with open(file, 'r') as f:
-            data = json.load(f)
+    def load_json_directory(self, json_dir, /, *, source='source', target='target',
+                        weight='weight', nodes='nodes', edges='edges',
+                        directed=True, dtype=np.float32,
+                        sort_vertices=False):
 
-        vertex_list = data[nodes]
-        vertex_list.sort() if sort_vertices else None
+        json_files = [file for file in sorted(os.listdir(json_dir))]
+        self._load_json_list(json_files, source=source, target=target, weight=weight, directed=directed,
+                            nodes=nodes, edges=edges, timestamp=None,
+                            dtype=dtype, sort_vertices=sort_vertices, sort_timestamps=False)
 
+    def _load_json_list(self, json_list, /, *, source='source', target='target',
+                        timestamp=None, weight='weight', nodes='nodes', edges='edges',
+                        directed=True, dtype=np.float32,
+                        sort_vertices=False, sort_timestamps=False):
+
+        vertex_set = set()
         timestamp_set = set()
-        for edge in data[edges]:
-            timestamp_set.add(edge[timestamp])
-
-        timestamp_list = list(timestamp_set)
-        timestamp_list.sort() if sort_timestamps else None
-        vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
-        timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
-        max_vertex = len(vertex_list)
-        max_time = len(timestamp_list)
-        tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
-
-        for edge in data[edges]:
-            t = timestamp_index_mapping[edge[timestamp]]
-            weight_value = edge[weight] if weight in edge else 1.0
-            i = vertex_index_mapping[edge[source]]
-            j = vertex_index_mapping[edge[target]]
-            tensor[i, j, t] = weight_value
-            if directed is False:
-                tensor[j, i, t] = weight_value
-
-        self._tensor = tl.tensor(tensor, dtype=dtype)
-        self._vertices = vertex_list
-        self._timestamps = timestamp_list
-        self._vertex_index_mapping = vertex_index_mapping
-        self._timestamp_index_mapping = timestamp_index_mapping
-
-    def load_json_directory(self, directory, /, *, source='source', target='target',
-                            weight='weight', nodes='nodes', edges='edges',
-                            directed=True, dtype=np.float32,
-                            sort_vertices=False, sort_timestamps=False):
-
-        vertices = set()
-        time_edges = {}
-        for file in sorted(os.listdir(directory)):
+        rows = []
+        for file in json_list:
             with open(file, 'r') as f:
                 data = json.load(f)
-            vertices.update(data[nodes])
-            time_edges[str(pathlib.Path(file).with_suffix(''))] = data[edges]
+            vertex_set.update(data[nodes])
+            for edge in data[edges]:
+                source_ = edge[source]
+                target_ = edge[target]
+                weight = edge.get(weight, 1.0)
+                timestamp_ = str(pathlib.Path(file).with_suffix('')
+                                 ) if timestamp is None else timestamp
+                rows.append([source_, target_, timestamp_, weight])
+                timestamp_set.add(timestamp_)
 
-        vertex_list = list(vertices)
+
+        vertex_list = list(vertex_set)
         vertex_list.sort() if sort_vertices else None
-        timestamp_list = list(time_edges.keys())
+        timestamp_list = list(timestamp_set)
         timestamp_list.sort() if sort_timestamps else None
+        self.load_edge_list(rows, vertex_list, timestamp_list, directed, dtype)
+
+    def load_edge_list(self, edge_list, vertex_list, timestamp_list,
+                       directed=True, dtype=np.float32):
         vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
         timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
         max_vertex = len(vertex_list)
         max_time = len(timestamp_list)
         tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
-
-        for timestamp, edges in time_edges.items():
-            t = timestamp_index_mapping[timestamp]
-            for edge in edges:
-                weight_value = edge[weight] if weight in edge else 1.0
-                i = vertex_index_mapping[edge[source]]
-                j = vertex_index_mapping[edge[target]]
-                tensor[i, j, t] = weight_value
-                if directed is False:
-                    tensor[j, i, t] = weight_value
-
+        for i, j, t, w in edge_list:
+            i = vertex_index_mapping[i]
+            j = vertex_index_mapping[j]
+            t = timestamp_index_mapping[t]
+            w = float(w)
+            tensor[i, j, t] = w
+            if directed is False:
+                tensor[j, i, t] = w
         self._tensor = tl.tensor(tensor, dtype=dtype)
         self._vertices = vertex_list
         self._timestamps = timestamp_list
