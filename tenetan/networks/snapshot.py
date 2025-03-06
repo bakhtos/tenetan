@@ -179,6 +179,7 @@ class SnapshotGraph:
                        sort_vertices=False, sort_timestamps=False):
 
         vertex_set = set()
+        seen_vertex_set = set()
         timestamp_set = set()
         rows = []
         for file in json_list:
@@ -193,9 +194,19 @@ class SnapshotGraph:
                                  ) if timestamp is None else timestamp
                 rows.append([source_, target_, timestamp_, weight])
                 timestamp_set.add(timestamp_)
+                seen_vertex_set.add(source_)
+                seen_vertex_set.add(target_)
+
+        not_declared = seen_vertex_set - vertex_set
+        if not_declared:
+            print(f'Following vertices were not declared in "{nodes}"', not_declared)
+
+        not_connected = vertex_set - seen_vertex_set
+        if not_connected:
+            print(f'Following vertices are not seen in "{edges}", and are ignored:', not_declared)
 
 
-        vertex_list = list(vertex_set)
+        vertex_list = list(seen_vertex_set)
         vertex_list.sort() if sort_vertices else None
         timestamp_list = list(timestamp_set)
         timestamp_list.sort() if sort_timestamps else None
