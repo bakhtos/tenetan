@@ -4,7 +4,6 @@ import os.path
 import pathlib
 
 import tensorly as tl
-import pandas as pd
 import numpy as np
 
 from typing import Any
@@ -81,31 +80,45 @@ class SnapshotGraph:
         self._timestamps = new_value
         self._timestamp_index_mapping = {value: index for index, value in enumerate(new_value)}
 
-    def load_csv(self, input_file, /, *, source='source', target='target', timestamp='timestamp', weight='weight',
+    def load_csv(self, csv_file, /, *, source='source', target='target', timestamp='timestamp', weight='weight',
+                       directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
+        self._load_csv_list([csv_file], source=source, target=target, timestamp=timestamp, weight=weight,
+                            directed=directed, dtype=dtype, sort_timestamps=sort_timestamps, sort_vertices=sort_vertices)
+
+    def _load_csv_list(self, csv_list, /, *, source='source', target='target', timestamp=None, weight='weight',
                  directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
 
-        data = pd.read_csv(input_file)
 
-        self._load_pandas(data, directed, dtype, sort_timestamps, sort_vertices, source, target, timestamp,
-                          weight)
+        rows = []
+        vertex_set = set()
+        timestamp_set = set()
+        for input_file in csv_list:
+            with open(input_file, 'r', newline='') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    source_ = row[source]
+                    target_ = row[target]
+                    timestamp_ = str(pathlib.Path(input_file).with_suffix('')
+                                     ) if timestamp is None else row[timestamp]
+                    vertex_set.add(source_)
+                    vertex_set.add(target_)
+                    timestamp_set.add(timestamp_)
+                    rows.append([source_, target_, timestamp_, row.get(weight, 1.0)])
 
-    def _load_pandas(self, dataframe, directed, dtype, sort_timestamps, sort_vertices, source, target, timestamp,
-                     weight):
-
-        vertex_list = list(pd.concat([dataframe[source], dataframe[target]]).unique())
+        vertex_list = list(vertex_set)
         vertex_list.sort() if sort_vertices else None
-        timestamp_list = list(dataframe[timestamp].unique())
+        timestamp_list = list(timestamp_set)
         timestamp_list.sort() if sort_timestamps else None
         vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
         timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
         max_vertex = len(vertex_list)
         max_time = len(timestamp_list)
         tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
-        for row in dataframe.itertuples(index=False):
-            i = vertex_index_mapping[getattr(row, source)]
-            j = vertex_index_mapping[getattr(row, target)]
-            t = timestamp_index_mapping[getattr(row, timestamp)]
-            w = getattr(row, weight) if weight is not None else 1.0
+        for i, j, t, w in rows:
+            i = vertex_index_mapping[i]
+            j = vertex_index_mapping[j]
+            t = timestamp_index_mapping[t]
+            w = float(w)
             tensor[i, j, t] = w
             if directed is False:
                 tensor[j, i, t] = w
@@ -117,14 +130,9 @@ class SnapshotGraph:
 
     def load_csv_directory(self, directory, /, *, source='source', target='target', weight='weight',
                            directed=True, dtype=np.float32, sort_vertices=False):
-        all_data = []
-        for file in sorted(os.listdir(directory)):
-            data = pd.read_csv(os.path.join(directory, file))
-            data['t'] = str(pathlib.Path(file).with_suffix(''))
-            all_data.append(data)
-        all_data = pd.concat(all_data, ignore_index=True)
-        self._load_pandas(all_data, source=source, target=target, weight=weight, directed=directed,
-                          dtype=dtype, sort_vertices=sort_vertices, timestamp='t', sort_timestamps=False)
+        csv_files = [file for file in sorted(os.listdir(directory))]
+        self._load_csv_list(csv_files, source=source, target=target, weight=weight, directed=directed,
+                          dtype=dtype, sort_vertices=sort_vertices, timestamp=None, sort_timestamps=False)
 
     def write_csv(self, path, /, *, source='source', target='target',
                   timestamp='timestamp', weight='weight'):
