@@ -104,17 +104,18 @@ class SnapshotGraph:
 
     def load_csv(self, csv_file, /, *, source='source', target='target', timestamp='timestamp', weight='weight',
                        directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
-        self._load_csv_list([csv_file], source=source, target=target, timestamp=timestamp, weight=weight,
-                            directed=directed, dtype=dtype, sort_timestamps=sort_timestamps, sort_vertices=sort_vertices)
+        self.load_csv_list([csv_file], source=source, target=target, timestamp=timestamp, weight=weight,
+                           directed=directed, dtype=dtype, sort_timestamps=sort_timestamps, sort_vertices=sort_vertices)
 
     def load_csv_directory(self, csv_dir, /, *, source='source', target='target', weight='weight',
                            directed=True, dtype=np.float32, sort_vertices=False):
         csv_files = [file for file in sorted(os.listdir(csv_dir))]
-        self._load_csv_list(csv_files, source=source, target=target, weight=weight, directed=directed,
-                            dtype=dtype, sort_vertices=sort_vertices, timestamp=None, sort_timestamps=False)
+        self.load_csv_list(csv_files, source=source, target=target, weight=weight, directed=directed,
+                           dtype=dtype, sort_vertices=sort_vertices, timestamp=None, sort_timestamps=False)
 
-    def _load_csv_list(self, csv_list, /, *, source='source', target='target', timestamp=None, weight='weight',
-                 directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
+    def load_csv_list(self, csv_list, /, *, source='source', target='target',
+                      timestamp='timestamp', weight='weight',
+                      directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
 
         rows = []
         vertex_set = set()
@@ -158,8 +159,8 @@ class SnapshotGraph:
     def load_json(self, json_file, /, *, source='source', target='target', timestamp='timestamp',
                     weight='weight', nodes='nodes', edges='edges',
                  directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
-        self._load_json_list([json_file], source=source, target=target, timestamp=timestamp, weight=weight,
-                             nodes=nodes, edges=edges,
+        self.load_json_list([json_file], source=source, target=target, timestamp=timestamp, weight=weight,
+                            nodes=nodes, edges=edges,
                             directed=directed, dtype=dtype, sort_timestamps=sort_timestamps, sort_vertices=sort_vertices)
 
     def load_json_directory(self, json_dir, /, *, source='source', target='target',
@@ -168,14 +169,14 @@ class SnapshotGraph:
                         sort_vertices=False):
 
         json_files = [file for file in sorted(os.listdir(json_dir))]
-        self._load_json_list(json_files, source=source, target=target, weight=weight, directed=directed,
+        self.load_json_list(json_files, source=source, target=target, weight=weight, directed=directed,
                             nodes=nodes, edges=edges, timestamp=None,
                             dtype=dtype, sort_vertices=sort_vertices, sort_timestamps=False)
 
-    def _load_json_list(self, json_list, /, *, source='source', target='target',
-                        timestamp=None, weight='weight', nodes='nodes', edges='edges',
-                        directed=True, dtype=np.float32,
-                        sort_vertices=False, sort_timestamps=False):
+    def load_json_list(self, json_list, /, *, source='source', target='target',
+                       timestamp='timestamp', weight='weight', nodes='nodes', edges='edges',
+                       directed=True, dtype=np.float32,
+                       sort_vertices=False, sort_timestamps=False):
 
         vertex_set = set()
         timestamp_set = set()
