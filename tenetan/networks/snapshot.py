@@ -221,3 +221,23 @@ class SnapshotGraph:
         self._timestamps = timestamp_list
         self._vertex_index_mapping = vertex_index_mapping
         self._timestamp_index_mapping = timestamp_index_mapping
+
+    def write_json(self, path, /, *, source='source', target='target', timestamp='timestamp',
+                  weight='weight', nodes='nodes', edges='edges'):
+
+        edge_data = []
+
+        for source_vertex, i in self._vertex_index_mapping.items():
+            for target_vertex, j in self._vertex_index_mapping.items():
+                for timestamp_, t in self._timestamp_index_mapping.items():
+                    if (w := self._tensor[i, j, t]) != 0.0:
+                        edge_data.append({
+                            source: source_vertex,
+                            target: target_vertex,
+                            weight: w,
+                            timestamp: timestamp_
+                        })
+        json_data = {nodes: self._vertices, edges: edge_data}
+
+        with open(path, 'w') as f:
+            json.dump(json_data, f, indent=4)
