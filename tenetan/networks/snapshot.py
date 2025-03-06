@@ -81,32 +81,31 @@ class SnapshotGraph:
         self._timestamps = new_value
         self._timestamp_index_mapping = {value: index for index, value in enumerate(new_value)}
 
-    def load_csv(self, input_file, /, *, source_col='i', target_col='j', time_col='t', weight_col='w',
+    def load_csv(self, input_file, /, *, source='source', target='target', timestamp='timestamp', weight='weight',
                  directed=True, dtype=np.float32, sort_vertices=False, sort_timestamps=False):
 
         data = pd.read_csv(input_file)
 
-        self._load_pandas(data, directed, dtype, sort_timestamps, sort_vertices, source_col, target_col, time_col,
-                          weight_col)
+        self._load_pandas(data, directed, dtype, sort_timestamps, sort_vertices, source, target, timestamp,
+                          weight)
 
-    def _load_pandas(self, dataframe, directed, dtype, sort_timestamps, sort_vertices, source_col, target_col, time_col,
-                     weight_col):
+    def _load_pandas(self, dataframe, directed, dtype, sort_timestamps, sort_vertices, source, target, timestamp,
+                     weight):
 
-        vertex_list = list(pd.concat([dataframe[source_col], dataframe[target_col]]).unique())
+        vertex_list = list(pd.concat([dataframe[source], dataframe[target]]).unique())
         vertex_list.sort() if sort_vertices else None
-        timestamp_list = list(dataframe[time_col].unique())
+        timestamp_list = list(dataframe[timestamp].unique())
         timestamp_list.sort() if sort_timestamps else None
         vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
         timestamp_index_mapping = {value: index for index, value in enumerate(timestamp_list)}
-        dataframe['i'] = dataframe[source_col].map(vertex_index_mapping)
-        dataframe['j'] = dataframe[target_col].map(vertex_index_mapping)
-        dataframe['t'] = dataframe[time_col].map(timestamp_index_mapping)
-        dataframe['w'] = dataframe[weight_col]
         max_vertex = len(vertex_list)
         max_time = len(timestamp_list)
         tensor = np.full((max_vertex, max_vertex, max_time), 0.0)
         for row in dataframe.itertuples(index=False):
-            i, j, t, w = int(row.i), int(row.j), int(row.t), float(row.w)
+            i = vertex_index_mapping[getattr(row, source)]
+            j = vertex_index_mapping[getattr(row, target)]
+            t = timestamp_index_mapping[getattr(row, timestamp)]
+            w = getattr(row, weight) if weight is not None else 1.0
             tensor[i, j, t] = w
             if directed is False:
                 tensor[j, i, t] = w
@@ -116,7 +115,7 @@ class SnapshotGraph:
         self._vertex_index_mapping = vertex_index_mapping
         self._timestamp_index_mapping = timestamp_index_mapping
 
-    def load_csv_directory(self, directory, /, *, source_col='i', target_col='j', weight_col='w',
+    def load_csv_directory(self, directory, /, *, source='source', target='target', weight='weight',
                            directed=True, dtype=np.float32, sort_vertices=False):
         all_data = []
         for file in sorted(os.listdir(directory)):
@@ -124,19 +123,20 @@ class SnapshotGraph:
             data['t'] = str(pathlib.Path(file).with_suffix(''))
             all_data.append(data)
         all_data = pd.concat(all_data, ignore_index=True)
-        self._load_pandas(all_data, source_col=source_col, target_col=target_col, weight_col=weight_col, directed=directed,
-                          dtype=dtype, sort_vertices=sort_vertices, time_col='t', sort_timestamps=False)
+        self._load_pandas(all_data, source=source, target=target, weight=weight, directed=directed,
+                          dtype=dtype, sort_vertices=sort_vertices, timestamp='t', sort_timestamps=False)
 
-    def write_csv(self, path, /, *, source_col='i', target_col='j', time_col='t', weight_col='w'):
+    def write_csv(self, path, /, *, source='source', target='target',
+                  timestamp='timestamp', weight='weight'):
 
-        csv_header = [source_col, target_col, time_col, weight_col]
+        csv_header = [source, target, timestamp, weight]
         csv_rows = []
 
         for source_vertex, i in self._vertex_index_mapping.items():
             for target_vertex, j in self._vertex_index_mapping.items():
-                for timestamp, t in self._timestamp_index_mapping.items():
+                for timestamp_, t in self._timestamp_index_mapping.items():
                     if (w := self._tensor[i, j, t]) != 0.0:
-                        csv_rows.append([source_vertex, target_vertex, timestamp, w])
+                        csv_rows.append([source_vertex, target_vertex, timestamp_, w])
 
         with open(path, 'w', newline='') as file:
             writer = csv.writer(file)
