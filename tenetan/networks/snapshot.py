@@ -108,6 +108,58 @@ class SnapshotGraph:
         self._timestamp_index_mapping[new_timestamp] = i
         del self._timestamp_index_mapping[old_timestamp]
 
+    def vertex_lifespan(self, *vertex):
+        lifespans = []
+        for v in vertex:
+            i = self._vertex_index_mapping[v]
+            # Check for nonzero values along axis 1 or axis 2
+            nonzero_mask = np.any(self._tensor[i, :, :] != 0, axis=0) | np.any(self._tensor[:, i, :] != 0, axis=0)  # Shape (T,)
+
+            # Find the first and last nonzero indices
+            first_t = np.argmax(nonzero_mask)  # First True index
+            last_t = len(nonzero_mask) - 1 - np.argmax(nonzero_mask[::-1])  # Last True index
+            lifespans.append((first_t, last_t))
+
+        return lifespans
+
+    def __getitem__(self, index):
+        if isinstance(index, tuple) and len(index) == 3:
+            i, j, t = index
+            if i not in self._vertex_index_mapping:
+                raise IndexError(f"Source node {i} not found in graph")
+            if j not in self._vertex_index_mapping:
+                raise IndexError(f"Target node {j} not found in graph")
+            if t not in self._timestamp_index_mapping:
+                raise IndexError(f"Timestamp {t} not found in graph")
+            i = self._vertex_index_mapping[i]
+            j = self._vertex_index_mapping[j]
+            t = self._timestamp_index_mapping[t]
+
+            return self._tensor[i,j,t]
+        else:
+            raise TypeError("Index must consist of (source, target, timestamp)")
+
+    def __setitem__(self, index, value):
+        if not isinstance(value, float) or value < 0.0:
+            raise ValueError(f"Weight must be a non-negative float, got {value}")
+
+        if isinstance(index, tuple) and len(index) == 3:
+            i, j, t = index
+            if i not in self._vertex_index_mapping:
+                raise IndexError(f"Source node {i} not found in graph")
+            if j not in self._vertex_index_mapping:
+                raise IndexError(f"Target node {j} not found in graph")
+            if t not in self._timestamp_index_mapping:
+                raise IndexError(f"Timestamp {t} not found in graph")
+            i = self._vertex_index_mapping[i]
+            j = self._vertex_index_mapping[j]
+            t = self._timestamp_index_mapping[t]
+
+            self._tensor[i,j,t] = value
+        else:
+            raise TypeError("Index must consist of (source, target, timestamp)")
+
+
     def load_edge_list(self, edge_list, vertex_list, timestamp_list,
                        directed=True, dtype=np.float32):
         vertex_index_mapping = {value: index for index, value in enumerate(vertex_list)}
