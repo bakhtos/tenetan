@@ -1,0 +1,9 @@
+| Type                   | Paper                                                                                                                      | Authors                                                            | DOI                                          |
+|------------------------|----------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|----------------------------------------------|
+| Community detection    | Detecting the Community Structure and Activity Patterns of Temporal Networks: A Non-Negative Tensor Factorization Approach | Laetita Gauvin, Andre Panisson, Ciro Cattuto                       | https://doi.org/10.1371/journal.pone.0086028 |
+| Eigenvector Centrality | EIGENVECTOR-BASED CENTRALITY MEASURES FOR TEMPORAL NETWORKS                                                                | Dane Taylor, Sean Myers, Aaron Clauset, Mason Porter, Peter Mucha  | https://doi.org/10.1137/16M1066142           |
+| Eigenvector Centrality | Centrality measures in temporal networks with time series analysis                                                         | Qiangjuan Huang, Chengli Zhao, Xue Zhang, Xioajie Wang, Dongyun Yi | https://doi.org/10.1209/0295-5075/118/36001  |
+| Eigenvector Centrality | Inter-layer similarity-based eigenvector centrality measures for temporal networks                                         | Ran-ran Yin, Qiang Guo, Jian-Nan Yang, Jian-Guo Liu                | https://doi.org/10.1016/j.physa.2018.08.018  |
+| Eigenvector Centrality | Node Importance Identification for Temporal Networks Based on Optimized Supra-Adjacency Matrix                             | Rui Lu, Sheng Zhang, Donghui Zhang, Xuefeng Zhang, Xioaling Bao    | https://doi.org/10.3390/e24101391            |
+
+
