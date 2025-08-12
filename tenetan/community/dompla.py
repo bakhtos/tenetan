@@ -3,6 +3,8 @@ from tenetan.networks import SnapshotGraph
 from typing import Dict, List, Any
 from collections import defaultdict
 
+__all__ = ["DOMPLA"]
+
 def DOMPLA(
     G: SnapshotGraph,
     T_max: int = 20,

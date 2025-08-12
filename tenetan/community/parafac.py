@@ -4,10 +4,10 @@ import tlviz
 
 import logging
 
-__all__ = ['community_parafac_nn_als']
+__all__ = ['PARAFAC_NN_ALS']
 
 
-def community_parafac_nn_als(network: SnapshotGraph, n_communities: int, /, *to_return, **tensorly_kwargs):
+def PARAFAC_NN_ALS(network: SnapshotGraph, n_communities: int, /, *to_return, **tensorly_kwargs):
     """
     Temporal Community detcetion via Non-negative Alternating Least Squares PARAFAC Decomposition
     [1] Gauvin L, Panisson A, Cattuto C (2014) Detecting the Community Structure and Activity Patterns of Temporal Networks:
