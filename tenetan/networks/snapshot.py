@@ -6,18 +6,45 @@ import tensorly as tl
 import pandas as pd
 import numpy as np
 
+from typing import Any
+from copy import deepcopy
+
 __all__ = ['SnapshotGraph']
 
 
 class SnapshotGraph:
 
-    def __init__(self):
+    def __init__(self, tensor=None, /):
 
-        self._tensor = None
+        self._tensor: np.ndarray = None
         self._vertices: list = []
         self._timestamps: list = []
-        self._vertex_index_mapping: dict[str, int] = {}
-        self._timestamp_index_mapping: dict[str, int] = {}
+        self._vertex_index_mapping: dict[Any, int] = {}
+        self._timestamp_index_mapping: dict[Any, int] = {}
+
+        if tensor is not None:
+            match tensor:
+                case np.ndarray():
+                    if len(tensor.shape) != 3:
+                        raise ValueError(f"SnapshotNetwork can be initialized from a 3D array, received {len(tensor.shape)}D")
+                    if tensor.shape[0] != tensor.shape[1]:
+                        raise ValueError(f"SnapshotNetwork can be initialized from an (N,N,T) 3D array, received array with shape {tensor.shape}")
+                    N = tensor.shape[0]
+                    T = tensor.shape[2]
+                    self._tensor = tensor
+                    self._vertices = list(range(N))
+                    self._timestamps = list(range(T))
+                    self._vertex_index_mapping = {i: i for i in range(N)}
+                    self._timestamp_index_mapping = {i: i for i in range(N)}
+                case SnapshotGraph():
+                    self._tensor = tensor._tensor.copy()
+                    self._vertices = deepcopy(tensor._vertices)
+                    self._timestamps = deepcopy(tensor._timestamps)
+                    self._vertex_index_mapping = {value: index for index, value in enumerate(self._vertices)}
+                    self._timestamp_index_mapping = {value: index for index, value in enumerate(self._timestamps)}
+                case _:
+                    raise TypeError(f"Snapshot graph cannot be constructed from an object of type {type(tensor)}")
+
 
     @property
     def vertices(self):
