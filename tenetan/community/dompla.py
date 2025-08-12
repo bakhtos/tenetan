@@ -1,6 +1,6 @@
 import numpy as np
 from tenetan.networks import SnapshotGraph
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from collections import defaultdict
 
 def DOMPLA(
@@ -13,12 +13,12 @@ def DOMPLA(
 ):
     """
     Dynamic Overlapping Multi-Label Propagation on a temporal network.
+    Angadi, A., & Varma, P. S. (2015). Overlapping community detection in temporal networks.
+    Indian journal of science and technology, 8(31), 1-6.
 
     Parameters
     ----------
-    G :
-        Adjacency tensor of shape (N, N, T). A[i, j, t] is the weight of edge i->j at time t.
-        Can be directed or undirected; weights should be nonnegative.
+    G : SnapshotGraph
     T_max : int
         Max MLPA iterations per snapshot.
     r : float
