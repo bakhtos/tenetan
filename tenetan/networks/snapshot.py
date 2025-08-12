@@ -31,7 +31,7 @@ class SnapshotGraph:
                         raise ValueError(f"SnapshotNetwork can be initialized from an (N,N,T) 3D array, received array with shape {tensor.shape}")
                     N = tensor.shape[0]
                     T = tensor.shape[2]
-                    self._tensor = tensor
+                    self._tensor = tl.tensor(tensor)
                     self._vertices = list(range(N))
                     self._timestamps = list(range(T))
                     self._vertex_index_mapping = {i: i for i in range(N)}
