@@ -46,40 +46,6 @@ def DOMPLA(
     if inflation <= 1.0:
         raise ValueError("Inflation must be above 1.0")
 
-    # One MLPA round with optional warm start
-    def MLPA(W: np.ndarray, P0: np.ndarray) -> np.ndarray:
-        # P[node, label]; initialize with delta labels (or warm start)
-        P = P0.copy()
-        # ensure valid probabilities
-        P[P < 0] = 0.0
-        row_sums = P.sum(axis=1, keepdims=True)
-        row_sums[row_sums == 0.0] = 1.0
-        P = P / row_sums
-
-        order = np.argsort(-W.sum(axis=1))  # degree(desc) order
-        for it in range(T_max):
-            total_change = 0.0
-            # one "visit" over nodes in degree order
-            for x in order:
-                # neighbors speak: aggregate neighbor label dists via W
-                # (row-normalized W => convex combination)
-                new_dist =  W[x] @ P if inflation is None else np.power(W[x] @ P, inflation)
-                s = new_dist.sum()
-                if s > 0:
-                    new_dist /= s
-                else:
-                    # isolated node: keep its current memory (or its own label)
-                    new_dist = P[x].copy()
-
-                # conditional update (avoid tiny oscillations)
-                delta = np.abs(new_dist - P[x]).sum()
-                if delta >= q:
-                    P[x] = new_dist
-                    total_change += delta
-
-            if total_change <= tol:
-                break
-        return P
 
     # Helper: convert label probabilities to overlapping communities
     def select_labels(P: np.ndarray):
@@ -123,11 +89,43 @@ def DOMPLA(
     # Iterate over time
     P = np.zeros_like(A)
     for t in range(0, T):
-        Pt = MLPA(A[:,:,t], P0=P[:,:,t-1] if t>0 else np.eye(N, dtype=float))
+        # P[node, label]; initialize with delta labels (or warm start)
+        Pt = P[:, :, t-1].copy() if t>0 else np.eye(N, dtype=float)
+        W = A[:, :, t]
+        # ensure valid probabilities
+        Pt[Pt < 0] = 0.0
+        row_sums = Pt.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0.0] = 1.0
+        Pt = Pt / row_sums
+
+        order = np.argsort(-W.sum(axis=1))  # degree(desc) order
+        for it in range(T_max):
+            total_change = 0.0
+            # one "visit" over nodes in degree order
+            for x in order:
+                # neighbors speak: aggregate neighbor label dists via W
+                # (row-normalized W => convex combination)
+                new_dist =  W[x] @ Pt if inflation is None else np.power(W[x] @ Pt, inflation)
+                s = new_dist.sum()
+                if s > 0:
+                    new_dist /= s
+                else:
+                    # isolated node: keep its current memory (or its own label)
+                    new_dist = Pt[x].copy()
+
+                # conditional update (avoid tiny oscillations)
+                delta = np.abs(new_dist - Pt[x]).sum()
+                if delta >= q:
+                    Pt[x] = new_dist
+                    total_change += delta
+
+            if total_change <= tol:
+                break
+
+        P[:,:,t] = Pt
         communities_t, node_labels_t = select_labels(Pt)
         communities.append(communities_t)
         node_labels.append(node_labels_t)
-        P[:,:,t] = Pt
 
     return communities, node_labels, P
 
