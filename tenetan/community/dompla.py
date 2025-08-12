@@ -46,30 +46,6 @@ def DOMPLA(
     if inflation <= 1.0:
         raise ValueError("Inflation must be above 1.0")
 
-
-    # Helper: convert label probabilities to overlapping communities
-    def select_labels(P: np.ndarray):
-        communities: Dict[int, List[Any]] = defaultdict(list)
-        node_labels: Dict[Any, List[int]] = defaultdict(list)
-        # keep labels >= r * max_prob for each node
-        maxp = P.max(axis=1, keepdims=True)
-        # avoid zeros to prevent all-drop
-        maxp[maxp == 0.0] = 1.0
-        keep = P >= (r * maxp)
-        # Assign node to all kept labels
-        for node_id, node in enumerate(G.vertices):
-            labels = np.where(keep[node_id])[0]
-            # safety: if nothing passes r (shouldn't happen), keep argmax
-            if labels.size == 0:
-                labels = np.array([int(np.argmax(P[node_id]))])
-            for lbl in labels:
-                communities[int(lbl)].append(node)
-                node_labels[node].append(int(lbl))
-        # remove empty communities
-        communities = {lbl: nodes for lbl, nodes in communities.items() if len(nodes) > 0}
-
-        return communities, node_labels
-
     A = G.tensor.copy()
     N, T = G.N, G.T
 
@@ -99,6 +75,7 @@ def DOMPLA(
         Pt = Pt / row_sums
 
         order = np.argsort(-W.sum(axis=1))  # degree(desc) order
+        # MLPA iterations
         for it in range(T_max):
             total_change = 0.0
             # one "visit" over nodes in degree order
@@ -123,7 +100,27 @@ def DOMPLA(
                 break
 
         P[:,:,t] = Pt
-        communities_t, node_labels_t = select_labels(Pt)
+
+        # Convert label probabilities to overlapping communities
+        communities_t: Dict[int, List[Any]] = defaultdict(list)
+        node_labels_t: Dict[Any, List[int]] = defaultdict(list)
+        # keep labels >= r * max_prob for each node
+        maxp = Pt.max(axis=1, keepdims=True)
+        # avoid zeros to prevent all-drop
+        maxp[maxp == 0.0] = 1.0
+        keep = Pt >= (r * maxp)
+        # Assign node to all kept labels
+        for node_id, node in enumerate(G.vertices):
+            labels = np.where(keep[node_id])[0]
+            # safety: if nothing passes r (shouldn't happen), keep argmax
+            if labels.size == 0:
+                labels = np.array([int(np.argmax(Pt[node_id]))])
+            for label in labels:
+                communities_t[int(label)].append(node)
+                node_labels_t[node].append(int(label))
+        # remove empty communities
+        communities_t = {label: nodes for label, nodes in communities_t.items() if len(nodes) > 0}
+
         communities.append(communities_t)
         node_labels.append(node_labels_t)
 
