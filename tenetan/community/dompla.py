@@ -67,33 +67,33 @@ def DOMPLA(
     for t in range(0, T):
         # P[node, label]; initialize with delta labels (or warm start)
         Pt = P[:, :, t-1].copy() if t>0 else np.eye(N, dtype=float)
-        W = A[:, :, t]
+        At = A[:, :, t]
         # ensure valid probabilities
         Pt[Pt < 0] = 0.0
         row_sums = Pt.sum(axis=1, keepdims=True)
         row_sums[row_sums == 0.0] = 1.0
         Pt = Pt / row_sums
 
-        order = np.argsort(-W.sum(axis=1))  # degree(desc) order
+        node_order = np.argsort(-At.sum(axis=1))  # degree(desc) order
         # MLPA iterations
-        for it in range(T_max):
+        for _ in range(T_max):
             total_change = 0.0
             # one "visit" over nodes in degree order
-            for x in order:
-                # neighbors speak: aggregate neighbor label dists via W
-                # (row-normalized W => convex combination)
-                new_dist =  W[x] @ Pt if inflation is None else np.power(W[x] @ Pt, inflation)
+            for node_id in node_order:
+                # neighbors speak: aggregate neighbor label dists via At
+                # (row-normalized At => convex combination)
+                new_dist =  At[node_id] @ Pt if inflation is None else np.power(At[node_id] @ Pt, inflation)
                 s = new_dist.sum()
                 if s > 0:
                     new_dist /= s
                 else:
                     # isolated node: keep its current memory (or its own label)
-                    new_dist = Pt[x].copy()
+                    new_dist = Pt[node_id].copy()
 
                 # conditional update (avoid tiny oscillations)
-                delta = np.abs(new_dist - Pt[x]).sum()
+                delta = np.abs(new_dist - Pt[node_id]).sum()
                 if delta >= q:
-                    Pt[x] = new_dist
+                    Pt[node_id] = new_dist
                     total_change += delta
 
             if total_change <= tol:
