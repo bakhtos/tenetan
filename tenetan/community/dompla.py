@@ -1,5 +1,4 @@
 import numpy as np
-import tensorly as tl
 from tenetan.networks import SnapshotGraph
 from typing import Dict, List, Any
 from collections import defaultdict
@@ -36,12 +35,10 @@ def DOMPLA(
 
     Returns
     -------
-    communities : List[Dict[int, List[Any]]]
+    communities : List[Dict[Any, List[Any]]]
         For each t, a dict: {label -> [nodes]}.
-        Labels are integers.
-    node_labels : List[Dict[Any, List[int]]]
+    node_labels : List[Dict[Any, List[Any]]]
         For each t, a dict: {node -> [labels]}.
-        Labels are integers.
     P : np.ndarray
         An (N, N, T) array of label probabilities: P[node, label, t].
     """
@@ -119,8 +116,9 @@ def DOMPLA(
             if labels.size == 0:
                 labels = np.array([int(np.argmax(Pt[node_id]))])
             for label in labels:
-                communities_t[int(label)].append(node)
-                node_labels_t[node].append(int(label))
+                label = G.vertices[label]
+                communities_t[label].append(node)
+                node_labels_t[node].append(label)
         # remove empty communities
         communities_t = {label: nodes for label, nodes in communities_t.items() if len(nodes) > 0}
 
@@ -169,7 +167,7 @@ if __name__ == "__main__":
 
     # ------------------- Run DOMLPA -------------------
     G = SnapshotGraph(A)
-    G.vertices = [str(i) for i in G.vertices]
+    G.vertices = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
     comms, nodes_t, P_seq = DOMPLA(
         G,
         T_max=35,
