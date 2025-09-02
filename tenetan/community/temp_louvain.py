@@ -24,7 +24,7 @@ def _renumber_labels(labels: np.ndarray) -> np.ndarray:
 def DynamicCommunities(
     G,
     labels_matrix: np.ndarray,
-    theta: float = 0.3,
+    sim_threshold: float = 0.5,
 ) -> nx.DiGraph:
     """
     Construct dynamic communities by matching step communities across snapshots via Jaccard.
@@ -35,7 +35,7 @@ def DynamicCommunities(
     labels_matrix : np.ndarray
         Shape (N, T). labels_matrix[n, t] is the step-community label of node n at time t.
         Labels at different t are *snapshot-local* (no assumed correspondence across t).
-    theta : float
+    sim_threshold : float
         Jaccard threshold. If J(C_{t-1,i}, C_{t,j}) >= theta, we add an edge (t-1,i) → (t,j).
 
     Returns
@@ -46,7 +46,7 @@ def DynamicCommunities(
             - 'nodes': set of member indices at snapshot t
             - 'size':  int size of the community
         For each t>0, an edge exists (t-1, li) -> (t, lj) with Jaccard similarity
-        as weight if the Jaccard similarity >= theta.
+        as weight if the Jaccard similarity >= sim_threshold.
     """
     N, T = labels_matrix.shape
     timestamps = G.timestamps
@@ -85,7 +85,7 @@ def DynamicCommunities(
     for t, (prev_comms, curr_comms) in enumerate(pairwise(step_sets_per_t), start=1):
         for (li, Si), (lj, Sj) in product(prev_comms.items(), curr_comms.items()):
                 jacc = _jac(Si, Sj)
-                if jacc >= theta:
+                if jacc >= sim_threshold:
                     evolution.add_edge((timestamps[t - 1], li), (timestamps[t], lj), weight=float(jacc))
 
     return evolution
