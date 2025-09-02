@@ -233,35 +233,33 @@ def StepwiseLouvain(
     labels_t.append(labels0)
 
     # sums along rows (out) + columns (in): shape (N, T)
-    s = A.sum(axis=1) + A.sum(axis=0)
+    w_p = A.sum(axis=1) + A.sum(axis=0)
     # total directed weight per t: shape (T,)
-    wG = A.sum(axis=(0, 1))
+    w_G = A.sum(axis=(0, 1))
 
-    # guard division-by-zero using where; fill with -inf when wG[t]==0
-    wG_safe = np.where(wG > 0, wG, np.nan)  # shape (T,)
-    DQ_all = (A / wG_safe[None, None, :]) - (
-            (s[:, None, :] * s[None, :, :]) / (2.0 * (wG_safe[None, None, :] ** 2))
+    # guard division-by-zero using where; fill with -inf when w_G[t]==0
+    w_G_safe = np.where(w_G > 0, w_G, np.nan)  # shape (T,)
+    dQ_all = (A / w_G_safe[None, None, :]) - (
+            (w_p[:, None, :] * w_p[None, :, :]) / (2.0 * (w_G_safe[None, None, :] ** 2))
     )  # shape (N, N, T)
-    DQ_all = np.where(np.isnan(DQ_all), -np.inf, DQ_all)
+    dQ_all = np.where(np.isnan(dQ_all), -np.inf, dQ_all)
 
     # neighbor if edge exists either direction
     nbr_mask_all = (A > 0) | (A.transpose(1, 0, 2) > 0)  # (N, N, T)
     diag_mask = np.eye(N, dtype=bool)[:, :, None]  # (N, N, 1) -> broadcast to T
     nbr_mask_all &= ~diag_mask
-    DQ_masked_all = np.where(nbr_mask_all, DQ_all, -np.inf)  # (N, N, T)
+    dQ = np.where(nbr_mask_all, dQ_all, -np.inf)  # (N, N, T)
 
     # best neighbor index for each p,t (argmax over q)
-    best_q_for_all = DQ_masked_all.argmax(axis=1)  # (N, T)
+    best_neighbor = dQ.argmax(axis=1)  # (N, T)
     # corresponding ΔQ value (useful to test validity)
-    best_dq_all = DQ_masked_all.max(axis=1)  # (N, T)
+    best_dQ = dQ.max(axis=1)  # (N, T)
 
 
     # ---- t>0: stepwise detection (division → agglomeration) ----
     for t in range(1, T):
         At = A_t(t)
         prev_labels = labels_t[t - 1]
-        best_q_for = best_q_for_all[:, t]  # (N,)
-        best_dq = best_dq_all[:, t]  # (N,)
 
         # ---- Division stage ----
         modules: List[Set[int]] = []
@@ -271,14 +269,14 @@ def StepwiseLouvain(
             in_comm = prev_labels == cid
             C_prev = np.where(in_comm)[0]
             # best neighbor per node (restricted to this community subset)
-            best_q_subset = best_q_for[C_prev]  # shape (|C_prev|,)
-            dq_pick = best_dq[C_prev]  # ΔQ value actually used for each p
+            best_q_comm = best_neighbor[C_prev, t]  # shape (|C_prev|,)
+            dq_pick = best_dQ[C_prev, t]  # ΔQ value actually used for each p
 
             # valid if p had any neighbor (masked row not all -inf)
             valid = np.isfinite(dq_pick)
 
             # among valid p's, mark those whose best neighbor is OUTSIDE the community
-            outside = ~in_comm[best_q_subset]
+            outside = ~in_comm[best_q_comm]
 
             # nodes to remove: p in C_prev_idx where valid & outside
             to_remove_idx = C_prev[valid & outside]  # array of node ids
