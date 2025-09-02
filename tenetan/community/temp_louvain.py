@@ -220,9 +220,10 @@ def StepwiseLouvain(
     Dynamic communities are formed by Jaccard matching of step communities across
     consecutive snapshots (Eq. 1; matched if ≥ θ).
     """
+    A = G.tensor
     N, T = G.N, G.T
 
-    def A(t): return G.tensor[:, :, t]
+    def A_t(t): return A[:, :, t]
 
     labels_t: List[np.ndarray] = []
 
@@ -231,31 +232,36 @@ def StepwiseLouvain(
                             resolution=louvain_resolution, seed=louvain_seed)
     labels_t.append(labels0)
 
+    # sums along rows (out) + columns (in): shape (N, T)
+    s = A.sum(axis=1) + A.sum(axis=0)
+    # total directed weight per t: shape (T,)
+    wG = A.sum(axis=(0, 1))
+
+    # guard division-by-zero using where; fill with -inf when wG[t]==0
+    wG_safe = np.where(wG > 0, wG, np.nan)  # shape (T,)
+    DQ_all = (A / wG_safe[None, None, :]) - (
+            (s[:, None, :] * s[None, :, :]) / (2.0 * (wG_safe[None, None, :] ** 2))
+    )  # shape (N, N, T)
+    DQ_all = np.where(np.isnan(DQ_all), -np.inf, DQ_all)
+
+    # neighbor if edge exists either direction
+    nbr_mask_all = (A > 0) | (A.transpose(1, 0, 2) > 0)  # (N, N, T)
+    diag_mask = np.eye(N, dtype=bool)[:, :, None]  # (N, N, 1) -> broadcast to T
+    nbr_mask_all &= ~diag_mask
+    DQ_masked_all = np.where(nbr_mask_all, DQ_all, -np.inf)  # (N, N, T)
+
+    # best neighbor index for each p,t (argmax over q)
+    best_q_for_all = DQ_masked_all.argmax(axis=1)  # (N, T)
+    # corresponding ΔQ value (useful to test validity)
+    best_dq_all = DQ_masked_all.max(axis=1)  # (N, T)
+
+
     # ---- t>0: stepwise detection (division → agglomeration) ----
     for t in range(1, T):
-        At = A(t)
+        At = A_t(t)
         prev_labels = labels_t[t - 1]
-
-        # Precompute strengths and wG
-        s = At.sum(axis=1) + At.sum(axis=0)  # in + out (directed)
-        wG = At.sum()
-
-        # Build ΔQ for all pairs (handle empty graph)
-        if wG > 0:
-            DQ = (At / wG) - (np.outer(s, s) / (2.0 * (wG ** 2)))
-        else:
-            DQ = np.full_like(At, -np.inf, dtype=float)
-
-        # Neighbor mask: q is a neighbor of p if there's an edge p->q or q->p
-        nbr_mask = (At > 0) | (At.T > 0)
-        # never allow self as "neighbor"
-        np.fill_diagonal(nbr_mask, False)
-
-        # Apply the mask; non-neighbors get -inf so they won't win argmax
-        DQ_masked = np.where(nbr_mask, DQ, -np.inf)
-
-        # Best neighbor index for each p (over all q that are neighbors)
-        best_q_for = DQ_masked.argmax(axis=1)  # shape (N,)
+        best_q_for = best_q_for_all[:, t]  # (N,)
+        best_dq = best_dq_all[:, t]  # (N,)
 
         # ---- Division stage ----
         modules: List[Set[int]] = []
@@ -266,7 +272,7 @@ def StepwiseLouvain(
             C_prev = np.where(in_comm)[0]
             # best neighbor per node (restricted to this community subset)
             best_q_subset = best_q_for[C_prev]  # shape (|C_prev|,)
-            dq_pick = DQ_masked[C_prev, best_q_subset]  # ΔQ value actually used for each p
+            dq_pick = best_dq[C_prev]  # ΔQ value actually used for each p
 
             # valid if p had any neighbor (masked row not all -inf)
             valid = np.isfinite(dq_pick)
