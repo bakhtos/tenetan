@@ -266,20 +266,24 @@ def StepwiseLouvain(
         removed_nodes: Set[int] = set()
 
         for i_prev, cid in enumerate(np.unique(prev_labels)):
-            C_prev = np.where(prev_labels == cid)[0]
-            C_prev_set = set(C_prev)
+            # membership mask for fast "in community" checks
+            in_comm = prev_labels == cid
+            C_prev = np.where(in_comm)[0]
+            # best neighbor per node (restricted to this community subset)
+            best_q_subset = best_q_for[C_prev]  # shape (|C_prev|,)
+            dq_pick = DQ_masked[C_prev, best_q_subset]  # ΔQ value actually used for each p
 
-            # remove p if its best-ΔQ neighbor lies outside C_prev
-            to_remove: Set[int] = set()
-            for p in C_prev:
-                best_q = int(best_q_for[p])
-                # If node p has no neighbors, DQ_masked[p,:] will be all -inf; handle that:
-                if not np.isfinite(DQ_masked[p, best_q]):
-                    continue
-                if best_q not in C_prev_set:
-                    to_remove.add(p)
+            # valid if p had any neighbor (masked row not all -inf)
+            valid = np.isfinite(dq_pick)
 
-            remaining = C_prev_set - to_remove
+            # among valid p's, mark those whose best neighbor is OUTSIDE the community
+            outside = ~in_comm[best_q_subset]
+
+            # nodes to remove: p in C_prev_idx where valid & outside
+            to_remove_idx = C_prev[valid & outside]  # array of node ids
+            to_remove: Set[int] = set(map(int, to_remove_idx))
+
+            remaining = set(C_prev) - to_remove
             removed_nodes |= to_remove
 
             if remaining:
