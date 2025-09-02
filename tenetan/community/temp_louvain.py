@@ -255,9 +255,8 @@ def StepwiseLouvain(
             # remove p if its best-ΔQ neighbor lies outside C_prev
             to_remove: Set[int] = set()
             for p in C_prev:
-                nbrs = np.unique(
-                    np.concatenate([np.nonzero(At[p, :] > 0)[0], np.nonzero(At[:, p] > 0)[0]])
-                )
+                nbrs = np.unique(np.concatenate([np.flatnonzero(At[p, :] > 0),
+                                                 np.flatnonzero(At[:, p] > 0)]))
                 if nbrs.size == 0:
                     continue
                 # Modularity (ΔQ)
@@ -270,7 +269,7 @@ def StepwiseLouvain(
             removed_nodes |= to_remove
 
             if remaining:
-                idx = np.fromiter(remaining, dtype=int)
+                idx = np.array(sorted(remaining), dtype=int)
                 subW = At[np.ix_(idx, idx)]
                 sub_labels = StaticLouvain(
                     subW,
