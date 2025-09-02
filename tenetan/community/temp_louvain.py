@@ -291,8 +291,8 @@ def StepwiseLouvain(
                     resolution=louvain_resolution,
                     seed=louvain_seed,
                 )
-                for cid in np.unique(sub_labels):
-                    nodes = idx[np.where(sub_labels == cid)[0]]
+                for sub_cid in np.unique(sub_labels):
+                    nodes = idx[np.where(sub_labels == sub_cid)[0]]
                     modules.append(set(map(int, nodes.tolist())))
 
         # removed nodes become singleton modules
