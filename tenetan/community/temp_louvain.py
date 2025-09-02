@@ -49,6 +49,8 @@ def DynamicCommunities(
         as weight if the Jaccard similarity >= theta.
     """
     N, T = labels_matrix.shape
+    timestamps = G.timestamps
+    vertices = G.vertices
 
     evolution = nx.DiGraph()
 
@@ -60,10 +62,11 @@ def DynamicCommunities(
         comms_t: Dict[int, Set[int]] = {}
         for cid in np.unique(labels_t):
             members = set(np.where(labels_t == cid)[0])
+            members = {vertices[i] for i in members}
             comms_t[int(cid)] = members
             evolution.add_node(
-                (t, int(cid)),
-                nodes=members,
+                (timestamps[t], int(cid)),
+                members=members,
                 size=len(members),
             )
         step_sets_per_t.append(comms_t)
@@ -83,7 +86,7 @@ def DynamicCommunities(
         for (li, Si), (lj, Sj) in product(prev_comms.items(), curr_comms.items()):
                 jacc = _jac(Si, Sj)
                 if jacc >= theta:
-                    evolution.add_edge((t - 1, li), (t, lj), weight=float(jacc))
+                    evolution.add_edge((timestamps[t - 1], li), (timestamps[t], lj), weight=float(jacc))
 
     return evolution
 
@@ -469,6 +472,7 @@ if __name__ == "__main__":
     # ------------------- Run DOMLPA -------------------
     G = SnapshotGraph(A)
     G.vertices = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+    G.timestamps = ['v1', 'v2', 'v3']
     #
     # comms, nl, l = TemporalLouvain(G)
     # print(comms)
