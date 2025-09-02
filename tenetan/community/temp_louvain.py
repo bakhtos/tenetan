@@ -308,14 +308,14 @@ def StepwiseLouvain(
 
         # ---- Agglomeration stage ----
         K = len(modules)
-        H = np.zeros((K, K), dtype=float)
-        for i in range(K):
-            I = np.fromiter(modules[i], dtype=int)
-            for j in range(K):
-                if i == j:
-                    continue
-                J = np.fromiter(modules[j], dtype=int)
-                H[i, j] = At[np.ix_(I, J)].sum()
+        # one-hot membership M (N×K)
+        M = np.zeros((N, K), dtype=float)
+        for k, mod in enumerate(modules):
+            idx = np.fromiter(mod, dtype=int)
+            M[idx, k] = 1.0
+
+        # compressed (directed) adjacency; diagonal now = sum of intra-module weights
+        H = M.T @ At @ M
 
         mod_labels = StaticLouvain(
             H, threshold=louvain_threshold, resolution=louvain_resolution, seed=louvain_seed
