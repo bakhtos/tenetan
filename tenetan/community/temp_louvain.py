@@ -239,9 +239,26 @@ def StepwiseLouvain(
         At = A(t)
         prev_labels = labels_t[t - 1]
 
-        # directed strengths (in + out) and total directed weight
-        strengths = At.sum(axis=1) + At.sum(axis=0)
+        # Precompute strengths and wG
+        s = At.sum(axis=1) + At.sum(axis=0)  # in + out (directed)
         wG = At.sum()
+
+        # Build ΔQ for all pairs (handle empty graph)
+        if wG > 0:
+            DQ = (At / wG) - (np.outer(s, s) / (2.0 * (wG ** 2)))
+        else:
+            DQ = np.full_like(At, -np.inf, dtype=float)
+
+        # Neighbor mask: q is a neighbor of p if there's an edge p->q or q->p
+        nbr_mask = (At > 0) | (At.T > 0)
+        # never allow self as "neighbor"
+        np.fill_diagonal(nbr_mask, False)
+
+        # Apply the mask; non-neighbors get -inf so they won't win argmax
+        DQ_masked = np.where(nbr_mask, DQ, -np.inf)
+
+        # Best neighbor index for each p (over all q that are neighbors)
+        best_q_for = DQ_masked.argmax(axis=1)  # shape (N,)
 
         # ---- Division stage ----
         modules: List[Set[int]] = []
@@ -255,13 +272,10 @@ def StepwiseLouvain(
             # remove p if its best-ΔQ neighbor lies outside C_prev
             to_remove: Set[int] = set()
             for p in C_prev:
-                nbrs = np.unique(np.concatenate([np.flatnonzero(At[p, :] > 0),
-                                                 np.flatnonzero(At[:, p] > 0)]))
-                if nbrs.size == 0:
+                best_q = int(best_q_for[p])
+                # If node p has no neighbors, DQ_masked[p,:] will be all -inf; handle that:
+                if not np.isfinite(DQ_masked[p, best_q]):
                     continue
-                # Modularity (ΔQ)
-                dq = (At[p, nbrs] / wG) - (strengths[p] * strengths[nbrs]) / (2.0 * (wG ** 2))
-                best_q = int(nbrs[np.argmax(dq)])
                 if best_q not in C_prev_set:
                     to_remove.add(p)
 
