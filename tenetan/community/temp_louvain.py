@@ -253,38 +253,37 @@ def StepwiseLouvain(
     louvain_seed=None,
 ):
     """
-    Stepwise (division + agglomeration) temporal community detection (He et al., 2017).
-    Always treats snapshots as directed (if your data are undirected, the slices are symmetric).
+    Stepwise Louvain algorithm for community detection by analysis of changed edges within submodules.
+
+    He, J., Chen, D., Sun, C., Fu, Y., & Li, W. (2017). Efficient stepwise detection of communities in temporal networks.
+    Physica A: Statistical Mechanics and its Applications, 469, 438-446.
 
     Parameters
     ----------
     G : SnapshotGraph
-        Must provide:
-          - tensor: np.ndarray of shape (N, N, T)
-          - N: int
-          - T: int
-          - vertices: iterable of node ids (length N)
     direction : str
         Which direction of connections to consider when determining the neighbours
-        of the node. Defaults to "both".
-    louvain_threshold : float
-        Passed to StaticLouvain (NetworkX Louvain threshold).
+        of the node, "in", "out" or "both". Defaults to "both".
+        For undirected networks use "both".
+    louvain_threshold: float
+        Threshold parameter. Passed to NetworkX Louvain.
+        Default 1e-07.
     louvain_resolution : float
-        Passed to StaticLouvain (resolution).
-    louvain_seed : Any or None
-        Passed to StaticLouvain (seed).
+        Louvain resolution (default 1.0). Passed to NetworkX Louvain.
+        Default 1.0.
+    louvain_seed : int or None
+        Random seed for Louvain algorithm. Passed to NetworkX Louvain.
 
     Returns
     -------
     communities : List[Dict[int, List[Any]]]
-        For each t, {label -> [original node ids]}.
+        For each t, a dict: {label -> [nodes]}.
+        Community labels are integers.
     node_labels : List[Dict[Any, int]]
-        For each t, {node id -> label}.
-    labels : np.ndarray
-        Shape (N, T): label of node with index n at time t.
-    dynamic_communities : List[np.ndarray]
-        Each item is an (N, T) uint8 matrix; entry [n, t] == 1 if node n is in that
-        dynamic community at time t, else 0.
+        For each t, a dict: {node -> [label]}.
+        Community labels are integers.
+    labels: np.ndarray
+        Shape (N, T), contains the label of node with index n at time t
 
     Notes
     -----
@@ -292,8 +291,6 @@ def StepwiseLouvain(
       • t=0: Louvain on full snapshot.
       • t>0: Division via ΔQ rule, then partition remaining nodes into modules (Louvain),
               Agglomeration on module graph (Louvain), Expand to node communities.
-    Dynamic communities are formed by Jaccard matching of step communities across
-    consecutive snapshots (Eq. 1; matched if ≥ θ).
     """
     A = G.tensor
     N, T = G.N, G.T
