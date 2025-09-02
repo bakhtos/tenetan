@@ -4,6 +4,7 @@ from networkx.algorithms.community import louvain_communities
 from tenetan.networks import SnapshotGraph
 from collections import defaultdict
 from typing import List, Set, Dict, Any, Tuple
+from itertools import pairwise, product
 
 __all__ = ["StaticLouvain", "TemporalLouvain"]
 
@@ -18,6 +19,73 @@ def _renumber_labels(labels: np.ndarray) -> np.ndarray:
             next_id += 1
         out[i] = uniq[c]
     return out
+
+
+def DynamicCommunities(
+    G,
+    labels_matrix: np.ndarray,
+    theta: float = 0.3,
+) -> nx.DiGraph:
+    """
+    Construct dynamic communities by matching step communities across snapshots via Jaccard.
+
+    Parameters
+    ----------
+    G : SnapshotGraph
+    labels_matrix : np.ndarray
+        Shape (N, T). labels_matrix[n, t] is the step-community label of node n at time t.
+        Labels at different t are *snapshot-local* (no assumed correspondence across t).
+    theta : float
+        Jaccard threshold. If J(C_{t-1,i}, C_{t,j}) >= theta, we add an edge (t-1,i) → (t,j).
+
+    Returns
+    -------
+    evolution : nx.DiGraph
+        A directed graph over step communities. Each node is a tuple (t, label_value_at_t)
+        with attributes:
+            - 'nodes': set of member indices at snapshot t
+            - 'size':  int size of the community
+        For each t>0, an edge exists (t-1, li) -> (t, lj) with Jaccard similarity
+        as weight if the Jaccard similarity >= theta.
+    """
+    N, T = labels_matrix.shape
+
+    evolution = nx.DiGraph()
+
+    # --- 1) Build step communities per snapshot: { (t, label) -> set(node_indices) } ---
+    # Also keep an indexable list per t for easier iteration.
+    step_sets_per_t: List[Dict[int, Set[int]]] = []
+    for t in range(T):
+        labels_t = labels_matrix[:, t]
+        comms_t: Dict[int, Set[int]] = {}
+        for cid in np.unique(labels_t):
+            members = set(np.where(labels_t == cid)[0])
+            comms_t[int(cid)] = members
+            evolution.add_node(
+                (t, int(cid)),
+                nodes=members,
+                size=len(members),
+            )
+        step_sets_per_t.append(comms_t)
+
+    # --- 2) Make evolution graph over step communities ---
+    # Jaccard helper
+    def _jac(a: Set[int], b: Set[int]) -> float:
+        if not a and not b:
+            return 1.0
+        inter = len(a & b)
+        if inter == 0:
+            return 0.0
+        return inter / (len(a) + len(b) - inter)
+
+    # Add edges between consecutive snapshots when Jaccard >= theta
+    for t, (prev_comms, curr_comms) in enumerate(pairwise(step_sets_per_t), start=1):
+        for (li, Si), (lj, Sj) in product(prev_comms.items(), curr_comms.items()):
+                jacc = _jac(Si, Sj)
+                if jacc >= theta:
+                    evolution.add_edge((t - 1, li), (t, lj), weight=float(jacc))
+
+    return evolution
 
 def StaticLouvain(W: np.ndarray, threshold: float = 1e-07, resolution: float = 1.0, seed=None) -> np.ndarray:
     """
@@ -401,8 +469,15 @@ if __name__ == "__main__":
     # ------------------- Run DOMLPA -------------------
     G = SnapshotGraph(A)
     G.vertices = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+    #
+    # comms, nl, l = TemporalLouvain(G)
+    # print(comms)
+    # print(nl)
+    # print(l)
 
-    comms, nl, l = TemporalLouvain(G)
+    comms, nl, l = StepwiseLouvain(G)
     print(comms)
     print(nl)
     print(l)
+    g = DynamicCommunities(G, l)
+    print(len(g))
