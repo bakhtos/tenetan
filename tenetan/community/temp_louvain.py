@@ -223,65 +223,55 @@ def StepwiseLouvain(
     Dynamic communities are formed by Jaccard matching of step communities across
     consecutive snapshots (Eq. 1; matched if ≥ θ).
     """
-    A = G.tensor
-    N, _, T = A.shape
+    N, T = G.N, G.T
 
-    def W(t): return A[:, :, t]
-
-    def _labels_to_sets(labels_1d: np.ndarray) -> List[Set[int]]:
-        return [set(np.where(labels_1d == cid)[0]) for cid in np.unique(labels_1d)]
+    def A(t): return G.tensor[:, :, t]
 
     labels_t: List[np.ndarray] = []
 
     # ---- t=0: Louvain on full snapshot ----
-    labels0 = StaticLouvain(
-        W(0), threshold=louvain_threshold, resolution=louvain_resolution, seed=louvain_seed
-    )
+    labels0 = StaticLouvain(A(0), threshold=louvain_threshold,
+                            resolution=louvain_resolution, seed=louvain_seed)
     labels_t.append(labels0)
 
     # ---- t>0: stepwise detection (division → agglomeration) ----
     for t in range(1, T):
-        Wt = W(t)
+        At = A(t)
         prev_labels = labels_t[t - 1]
-        prev_comms = _labels_to_sets(prev_labels)
 
         # directed strengths (in + out) and total directed weight
-        strengths = Wt.sum(axis=1) + Wt.sum(axis=0)
-        wG = Wt.sum()
-
-        def delta_Q(p: int, q: int) -> float:
-            # ΔQ_{pq} = w_pq / wG − (w_p w_q)/(2 wG^2)
-            if wG <= 0:
-                return -np.inf
-            return (Wt[p, q] / wG) - (strengths[p] * strengths[q]) / (2.0 * (wG ** 2))
+        strengths = At.sum(axis=1) + At.sum(axis=0)
+        wG = At.sum()
 
         # ---- Division stage ----
         modules: List[Set[int]] = []
         module_origin: List[int] = []  # which prev community a module came from
         removed_nodes: Set[int] = set()
 
-        for i_prev, C_prev in enumerate(prev_comms):
-            C_prev_arr = np.fromiter(C_prev, dtype=int)
+        for i_prev, cid in enumerate(np.unique(prev_labels)):
+            C_prev = np.where(prev_labels == cid)[0]
+            C_prev_set = set(C_prev)
 
             # remove p if its best-ΔQ neighbor lies outside C_prev
             to_remove: Set[int] = set()
-            for p in C_prev_arr:
+            for p in C_prev:
                 nbrs = np.unique(
-                    np.concatenate([np.nonzero(Wt[p, :] > 0)[0], np.nonzero(Wt[:, p] > 0)[0]])
+                    np.concatenate([np.nonzero(At[p, :] > 0)[0], np.nonzero(At[:, p] > 0)[0]])
                 )
                 if nbrs.size == 0:
                     continue
-                dq = (Wt[p, nbrs] / wG) - (strengths[p] * strengths[nbrs]) / (2.0 * (wG ** 2))
+                # Modularity (ΔQ)
+                dq = (At[p, nbrs] / wG) - (strengths[p] * strengths[nbrs]) / (2.0 * (wG ** 2))
                 best_q = int(nbrs[np.argmax(dq)])
-                if best_q not in C_prev:
+                if best_q not in C_prev_set:
                     to_remove.add(p)
 
-            remaining = set(C_prev_arr.tolist()) - to_remove
+            remaining = C_prev_set - to_remove
             removed_nodes |= to_remove
 
             if remaining:
                 idx = np.fromiter(remaining, dtype=int)
-                subW = Wt[np.ix_(idx, idx)]
+                subW = At[np.ix_(idx, idx)]
                 sub_labels = StaticLouvain(
                     subW,
                     threshold=louvain_threshold,
@@ -297,16 +287,15 @@ def StepwiseLouvain(
         for v in removed_nodes:
             modules.append({int(v)})
             # provenance (prev community index)
-            for i_prev, C_prev in enumerate(prev_comms):
-                if v in C_prev:
+            for i_prev, cid in enumerate(np.unique(prev_labels)):
+                if prev_labels[v] == cid:
                     module_origin.append(i_prev)
                     break
 
         # No modules → fall back to plain Louvain on Wt
         if not modules:
-            labels = StaticLouvain(
-                Wt, threshold=louvain_threshold, resolution=louvain_resolution, seed=louvain_seed
-            )
+            labels = StaticLouvain(At, threshold=louvain_threshold,
+                                   resolution=louvain_resolution, seed=louvain_seed)
             labels_t.append(labels)
             continue
 
@@ -319,7 +308,7 @@ def StepwiseLouvain(
                 if i == j:
                     continue
                 J = np.fromiter(modules[j], dtype=int)
-                H[i, j] = Wt[np.ix_(I, J)].sum()
+                H[i, j] = At[np.ix_(I, J)].sum()
 
         mod_labels = StaticLouvain(
             H, threshold=louvain_threshold, resolution=louvain_resolution, seed=louvain_seed
