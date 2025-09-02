@@ -235,7 +235,7 @@ def StepwiseLouvain(
     labels_t: List[np.ndarray] = []
 
     # ---- t=0: Louvain on full snapshot ----
-    labels0 = StaticLouvain(A(0), threshold=louvain_threshold,
+    labels0 = StaticLouvain(A_t(0), threshold=louvain_threshold,
                             resolution=louvain_resolution, seed=louvain_seed)
     labels_t.append(labels0)
 
