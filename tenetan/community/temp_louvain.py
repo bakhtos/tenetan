@@ -179,7 +179,6 @@ def StepwiseLouvain(
     louvain_threshold: float = 1e-07,
     louvain_resolution: float = 1.0,
     louvain_seed=None,
-    match_threshold: float = 0.3,
 ):
     """
     Stepwise (division + agglomeration) temporal community detection (He et al., 2017).
@@ -199,8 +198,6 @@ def StepwiseLouvain(
         Passed to StaticLouvain (resolution).
     louvain_seed : Any or None
         Passed to StaticLouvain (seed).
-    match_threshold : float
-        Jaccard threshold θ to match step communities across t-1 → t (Eq. 1 in He et al., 2017).
 
     Returns
     -------
@@ -262,7 +259,6 @@ def StepwiseLouvain(
 
         # ---- Division stage ----
         modules: List[Set[int]] = []
-        module_origin: List[int] = []  # which prev community a module came from
         removed_nodes: Set[int] = set()
 
         for i_prev, cid in enumerate(np.unique(prev_labels)):
@@ -298,16 +294,10 @@ def StepwiseLouvain(
                 for cid in np.unique(sub_labels):
                     nodes = idx[np.where(sub_labels == cid)[0]]
                     modules.append(set(map(int, nodes.tolist())))
-                    module_origin.append(i_prev)
 
         # removed nodes become singleton modules
         for v in removed_nodes:
             modules.append({int(v)})
-            # provenance (prev community index)
-            for i_prev, cid in enumerate(np.unique(prev_labels)):
-                if prev_labels[v] == cid:
-                    module_origin.append(i_prev)
-                    break
 
         # No modules → fall back to plain Louvain on Wt
         if not modules:
@@ -353,87 +343,7 @@ def StepwiseLouvain(
 
     labels_matrix = np.stack(labels_t, axis=1)  # (N, T)
 
-    # -------------------------------------------------------------------------
-    # Build dynamic communities: list of N×T binary matrices via Jaccard
-    # (Eq. 1). Community at t matches a previous track if Jaccard ≥ θ.
-    # Splits/merges are handled by cloning tracks for additional matches.
-    # -------------------------------------------------------------------------
-    # Step communities as sets per t
-    step_sets: List[List[Set[int]]] = []
-    for t in range(T):
-        labs = labels_t[t]
-        step_sets.append([set(np.where(labs == cid)[0]) for cid in np.unique(labs)])
-
-    def jaccard(S: Set[int], T_: Set[int]) -> float:
-        if not S and not T_:
-            return 1.0
-        inter = len(S & T_)
-        if inter == 0:
-            return 0.0
-        union = len(S) + len(T_) - inter
-        return inter / union
-
-    # Each track holds: matrix (N×T uint8) and last set at t-1
-    tracks: List[Tuple[np.ndarray, Set[int]]] = []
-
-    # Initialize tracks from t=0
-    for C in step_sets[0]:
-        M = np.zeros((N, T), dtype=np.uint8)
-        if len(C) > 0:
-            M[list(C), 0] = 1
-        tracks.append((M, C))
-
-    # Progressively link t=1..T-1
-    for t in range(1, T):
-        curr = step_sets[t]
-        # For matching, snapshot of previous tracks' last sets
-        prev_sets = [S_prev for (_, S_prev) in tracks]
-
-        # Keep which prev tracks got used (so unmatched ones simply have 0s at column t)
-        used_prev = set()
-        new_tracks: List[Tuple[np.ndarray, Set[int]]] = []
-
-        for C in curr:
-            # Find all prev tracks with Jaccard ≥ θ
-            candidates = []
-            for i_prev, S_prev in enumerate(prev_sets):
-                jac = jaccard(S_prev, C)
-                if jac >= match_threshold:
-                    candidates.append((i_prev, jac))
-            # No match → start a new track at t
-            if not candidates:
-                M = np.zeros((N, T), dtype=np.uint8)
-                if len(C) > 0:
-                    M[list(C), t] = 1
-                new_tracks.append((M, C))
-                continue
-
-            # Sort by similarity (desc)
-            candidates.sort(key=lambda x: x[1], reverse=True)
-
-            # 1) Extend the best-matching existing track in-place
-            best_idx = candidates[0][0]
-            used_prev.add(best_idx)
-            tracks[best_idx][0][list(C), t] = 1
-            # update last set to C
-            tracks[best_idx] = (tracks[best_idx][0], C)
-
-            # 2) For additional matches (merges), CLONE that previous track and extend
-            for i_prev, _ in candidates[1:]:
-                used_prev.add(i_prev)
-                M_clone = tracks[i_prev][0].copy()
-                if len(C) > 0:
-                    M_clone[list(C), t] = 1
-                new_tracks.append((M_clone, C))
-
-        # Unmatched previous tracks: just carry zeros at column t (implicitly already zeros)
-
-        # Append any new tracks created this step
-        tracks.extend(new_tracks)
-
-    dynamic_communities = [M for (M, _) in tracks]
-
-    return communities, node_labels, labels_matrix, dynamic_communities
+    return communities, node_labels, labels_matrix
 
 # ---------- Example usage ----------
 if __name__ == "__main__":
