@@ -259,7 +259,6 @@ def StepwiseLouvain(
 
         # ---- Division stage ----
         modules: List[Set[int]] = []
-        removed_nodes: Set[int] = set()
 
         for i_prev, cid in enumerate(np.unique(prev_labels)):
             # membership mask for fast "in community" checks
@@ -277,14 +276,15 @@ def StepwiseLouvain(
 
             # nodes to remove: p in C_prev_idx where valid & outside
             to_remove_idx = C_prev[valid & outside]  # array of node ids
-            to_remove: Set[int] = set(map(int, to_remove_idx))
 
-            remaining = set(C_prev) - to_remove
-            removed_nodes |= to_remove
+            # 1) add singleton modules for removed nodes
+            if to_remove_idx.size:
+                modules.extend([{int(v)} for v in to_remove_idx])
 
-            if remaining:
-                idx = np.array(sorted(remaining), dtype=int)
-                subW = At[np.ix_(idx, idx)]
+            # 2) partition the remaining nodes into modules
+            if to_remove_idx.size < C_prev.size:
+                remaining = np.setdiff1d(C_prev, to_remove_idx, assume_unique=True)
+                subW = At[np.ix_(remaining, remaining)]
                 sub_labels = StaticLouvain(
                     subW,
                     threshold=louvain_threshold,
@@ -292,12 +292,8 @@ def StepwiseLouvain(
                     seed=louvain_seed,
                 )
                 for sub_cid in np.unique(sub_labels):
-                    nodes = idx[np.where(sub_labels == sub_cid)[0]]
+                    nodes = remaining[np.where(sub_labels == sub_cid)[0]]
                     modules.append(set(map(int, nodes.tolist())))
-
-        # removed nodes become singleton modules
-        for v in removed_nodes:
-            modules.append({int(v)})
 
         # No modules → fall back to plain Louvain on Wt
         if not modules:
