@@ -176,6 +176,7 @@ def TemporalLouvain(
 def StepwiseLouvain(
     G,
     *,
+    direction="both",
     louvain_threshold: float = 1e-07,
     louvain_resolution: float = 1.0,
     louvain_seed=None,
@@ -192,6 +193,9 @@ def StepwiseLouvain(
           - N: int
           - T: int
           - vertices: iterable of node ids (length N)
+    direction : str
+        Which direction of connections to consider when determining the neighbours
+        of the node. Defaults to "both".
     louvain_threshold : float
         Passed to StaticLouvain (NetworkX Louvain threshold).
     louvain_resolution : float
@@ -223,6 +227,9 @@ def StepwiseLouvain(
     A = G.tensor
     N, T = G.N, G.T
 
+    if direction not in ["in", "out", "both"]:
+        raise ValueError("direction must be 'in', 'out', or 'both'")
+
     def A_t(t): return A[:, :, t]
 
     labels_t: List[np.ndarray] = []
@@ -232,22 +239,31 @@ def StepwiseLouvain(
                             resolution=louvain_resolution, seed=louvain_seed)
     labels_t.append(labels0)
 
-    # sums along rows (out) + columns (in): shape (N, T)
-    w_p = A.sum(axis=1) + A.sum(axis=0)
-    # total directed weight per t: shape (T,)
-    w_G = A.sum(axis=(0, 1))
+    # (N, N, T)
+    w_pq = np.zeros_like(A)
+    w_p = np.zeros((N, T))
+    if direction in ["out", "both"]:
+        w_pq += A  # w_pq = A[p,q]
+        w_p += A.sum(axis=1)  # out-strength (rows) -> shape (N, T)
+    if direction in ["in", "both"]:
+        w_pq += A.transpose(1, 0, 2)  # w_pq = A[q,p]
+        w_p += A.sum(axis=0)  # in-strength (cols) -> shape (N, T)
+
+    # total weight per snapshot (sum of effective pair weights)
+    w_G = w_pq.sum(axis=(0, 1))  # (T,)
+    nbr_mask_all = (w_pq > 0)  # neighbor if either dir
+    # never allow self as neighbor
+    diag_mask = np.eye(N, dtype=bool)[:, :, None]  # (N, N, 1) broadcast over T
+    nbr_mask_all &= ~diag_mask
 
     # guard division-by-zero using where; fill with -inf when w_G[t]==0
     w_G_safe = np.where(w_G > 0, w_G, np.nan)  # shape (T,)
-    dQ_all = (A / w_G_safe[None, None, :]) - (
+    dQ_all = (w_pq / w_G_safe[None, None, :]) - (
             (w_p[:, None, :] * w_p[None, :, :]) / (2.0 * (w_G_safe[None, None, :] ** 2))
     )  # shape (N, N, T)
     dQ_all = np.where(np.isnan(dQ_all), -np.inf, dQ_all)
 
     # neighbor if edge exists either direction
-    nbr_mask_all = (A > 0) | (A.transpose(1, 0, 2) > 0)  # (N, N, T)
-    diag_mask = np.eye(N, dtype=bool)[:, :, None]  # (N, N, 1) -> broadcast to T
-    nbr_mask_all &= ~diag_mask
     dQ = np.where(nbr_mask_all, dQ_all, -np.inf)  # (N, N, T)
 
     # best neighbor index for each p,t (argmax over q)
