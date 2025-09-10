@@ -31,7 +31,8 @@ dependencies = [
     "tensorly==0.8.1",
     "TLViz==0.1.1",
     "scipy",
-    "statsmodels>=0.12.0"]
+    "statsmodels>=0.12.0",
+    "networkx"]
 
 [project.urls]
 Homepage = "https://github.com/bakhtos/tenetan"
