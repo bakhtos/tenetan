@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import List, Set, Dict, Any, Tuple
 from itertools import pairwise, product
 
-__all__ = ["StaticLouvain", "TemporalLouvain"]
+__all__ = ["StaticLouvain", "TemporalLouvain", "StepwiseLouvain", "DynamicCommunities"]
 
 def _renumber_labels(labels: np.ndarray) -> np.ndarray:
     """Make labels contiguous (0..K-1) in a stable encounter order."""
