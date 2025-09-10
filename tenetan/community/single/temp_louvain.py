@@ -3,7 +3,7 @@ import networkx as nx
 from networkx.algorithms.community import louvain_communities
 from tenetan.networks import SnapshotGraph
 from collections import defaultdict
-from typing import List, Set, Dict, Any, Tuple
+from typing import List, Set, Dict, Any
 from itertools import pairwise, product
 
 __all__ = ["StaticLouvain", "TemporalLouvain", "StepwiseLouvain", "DynamicCommunities"]
