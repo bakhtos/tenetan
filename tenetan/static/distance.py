@@ -2,7 +2,7 @@ import numpy as np
 
 from .linalg import NormalizedLaplacian, Laplacian
 
-__all__ = ["DeltaCon", "SpectralDistance", "GraphEditDistance"]
+__all__ = ["DeltaCon", "SpectralDistance", "NormalizedSpectralDistance", "GraphEditDistance"]
 
 def DeltaCon(A1: np.ndarray, A2: np.ndarray, direction="in"):
     """
@@ -25,10 +25,10 @@ def DeltaCon(A1: np.ndarray, A2: np.ndarray, direction="in"):
 
 
 def SpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
-                     normalized=False, n_eig=None):
+                     normalized_laplacian=False, n_eig=None):
     if n_eig is None:
         n_eig = A1.shape[0]
-    L = NormalizedLaplacian if normalized else Laplacian
+    L = NormalizedLaplacian if normalized_laplacian else Laplacian
     eig1 = np.linalg.eigvals(L(A1, direction=direction))
     eig1.sort()
     eig2 = np.linalg.eigvals(L(A2, direction=direction))
@@ -38,6 +38,25 @@ def SpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
     eig1 = eig1[:n_eig]
     eig2 = eig2[:n_eig]
     return np.linalg.norm(eig1-eig2)
+
+
+def NormalizedSpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
+                     normalized_laplacian=False, n_eig=None):
+    if n_eig is None:
+        n_eig = A1.shape[0]
+    L = NormalizedLaplacian if normalized_laplacian else Laplacian
+    eig1 = np.linalg.eigvals(L(A1, direction=direction))
+    eig1.sort()
+    eig2 = np.linalg.eigvals(L(A2, direction=direction))
+    eig2.sort()
+    eig1 = np.flip(eig1)
+    eig2 = np.flip(eig2)
+    eig1 = eig1[:n_eig]
+    eig2 = eig2[:n_eig]
+    m1 = np.sum(np.square(eig1))
+    m2 = np.sum(np.square(eig2))
+    m = max(m1, m2)
+    return np.linalg.norm(eig1-eig2)/np.sqrt(m)
 
 
 def GraphEditDistance(A1: np.ndarray, A2: np.ndarray):
