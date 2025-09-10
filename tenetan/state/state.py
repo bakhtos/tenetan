@@ -124,7 +124,7 @@ def MasudaHolme(G: SnapshotGraph, sim: callable = GraphEditDistance):
     try:
         linkage_matrix = linkage(distance_vector)
     except:
-        return None, None, None, distance_matrix
+        return None, None, None, distance_matrix, None
 
     dunn_scores = np.zeros(T)
     labels = cut_tree(linkage_matrix)
@@ -135,7 +135,7 @@ def MasudaHolme(G: SnapshotGraph, sim: callable = GraphEditDistance):
 
     best_C = int(np.argmax(dunn_scores))
 
-    return best_C, labels, dunn_scores, distance_matrix
+    return best_C, labels, dunn_scores, distance_matrix, linkage_matrix
 
 
 if __name__ == "__main__":
@@ -144,10 +144,11 @@ if __name__ == "__main__":
     G.load_csv("../datasets/eg_taylor.csv",
                source="i", target="j", timestamp="t", weight="w",
                sort_vertices=True, sort_timestamps=True)
-    distance_matrix, best_C, labels, dunn_scores = MasudaHolme(G, sim=SpectralDistance)
+    best_C, labels, dunn_scores, distance_matrix, linkage_matrix = MasudaHolme(G, sim=SpectralDistance)
     print(best_C)
     print(dunn_scores)
     print(labels)
     print(distance_matrix)
+    print(linkage_matrix)
 
 
