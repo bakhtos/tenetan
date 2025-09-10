@@ -6,6 +6,8 @@ from scipy.cluster.hierarchy import linkage, cut_tree
 
 from tenetan.static.distance import *
 
+__all__ = ["MasudaHolme", "DunnIndex"]
+
 
 def DunnIndex(D: np.ndarray, labels: np.ndarray) -> float:
     unique_labels = np.unique(labels)
