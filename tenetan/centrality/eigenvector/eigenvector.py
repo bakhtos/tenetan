@@ -1,4 +1,4 @@
-from .centrality_function import LiuCentralityFunction
+from tenetan.static.centrality import LiuCentralityFunction
 from .layer_similarity import YinLayerSimilarity, LiuLayerSimilarity, HuangLayerSimilarity
 
 import numpy as np
