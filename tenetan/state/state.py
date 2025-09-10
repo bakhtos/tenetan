@@ -2,7 +2,7 @@ from tenetan.networks import SnapshotGraph
 import numpy as np
 from itertools import combinations
 from scipy.spatial.distance import squareform
-from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.cluster.hierarchy import linkage, cut_tree
 
 
 def Laplacian(A: np.ndarray, direction="in") -> np.ndarray:
@@ -124,21 +124,18 @@ def MasudaHolme(G: SnapshotGraph, sim: callable = GraphEditDistance):
     try:
         linkage_matrix = linkage(distance_vector)
     except:
-        return distance_matrix, None, None, None
+        return None, None, None, distance_matrix
 
-    dunn_scores = np.zeros((T+1))
-    labels = np.zeros((T, T+1))
+    dunn_scores = np.zeros(T)
+    labels = cut_tree(linkage_matrix)
+    labels = np.flip(labels, axis=1)
     for C in range(1, T+1):
-        labels_c = fcluster(linkage_matrix, C, criterion='maxclust')
-        dunn = DunnIndex(distance_matrix, labels_c)
-        dunn_scores[C] = dunn
-        labels[:, C] = labels_c
+        dunn = DunnIndex(distance_matrix, labels[:, C-1])
+        dunn_scores[C-1] = dunn
 
     best_C = int(np.argmax(dunn_scores))
-    labels[:, 0] = np.nan
-    dunn_scores[0] = np.nan
 
-    return distance_matrix, best_C, labels, dunn_scores
+    return best_C, labels, dunn_scores, distance_matrix
 
 
 if __name__ == "__main__":
@@ -147,10 +144,10 @@ if __name__ == "__main__":
     G.load_csv("../datasets/eg_taylor.csv",
                source="i", target="j", timestamp="t", weight="w",
                sort_vertices=True, sort_timestamps=True)
-    distance_matrix, best_C, labels, dunn_scores = MasudaHolme(G, sim=GraphEditDistance)
-    print(distance_matrix)
+    distance_matrix, best_C, labels, dunn_scores = MasudaHolme(G, sim=SpectralDistance)
     print(best_C)
     print(dunn_scores)
     print(labels)
+    print(distance_matrix)
 
 
