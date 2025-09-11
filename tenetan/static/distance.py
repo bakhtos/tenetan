@@ -138,20 +138,18 @@ def GraphEditDistance(A1: np.ndarray, A2: np.ndarray) -> int:
     dist: graph edit distance
     """
 
-    def nodes(A: np.ndarray):
-        # Find rows and columns that are not all zeros
-        row_nonzero = np.any(A != 0, axis=1)
-        col_nonzero = np.any(A != 0, axis=0)
+    # Nodes with any in or out edge (non-zero rows or cols)
+    nodes_A = np.any(A1 != 0, axis=0) | np.any(A1 != 0, axis=1)
+    nodes_B = np.any(A2 != 0, axis=0) | np.any(A2 != 0, axis=1)
 
-        # Find indices where either row or column has a non-zero element
-        active_indices = np.where(row_nonzero | col_nonzero)[0]
-        return len(active_indices)
+    N_A = np.count_nonzero(nodes_A)
+    N_B = np.count_nonzero(nodes_B)
+    N_common = np.count_nonzero(np.logical_and(nodes_A, nodes_B))
 
-    def edges(A: np.ndarray):
-        return  np.count_nonzero(A)
+    # Edge counts = number of non-zero entries
+    E_A = np.count_nonzero(A1)
+    E_B = np.count_nonzero(A2)
+    E_common = np.count_nonzero(np.logical_and(A1 != 0, A2 != 0))
 
-    A1 = A1.astype(np.bool)
-    A2 = A2.astype(np.bool)
-
-    return (nodes(A1) + nodes(A2) - 2*nodes(A1|A2)
-            + edges(A1) + edges(A2) - 2*edges(A1&A2))
+    GED = (N_A + N_B - 2 * N_common) + (E_A + E_B - 2 * E_common)
+    return int(GED)
