@@ -6,9 +6,22 @@ __all__ = ["DeltaCon", "SpectralDistance", "NormalizedSpectralDistance", "GraphE
 
 def DeltaCon(A1: np.ndarray, A2: np.ndarray, direction="in"):
     """
+    DeltaCon graph distance, as defined in:
     Koutra, D., Shah, N., Vogelstein, J. T., Gallagher, B., & Faloutsos, C. (2016)
     Deltacon: Principled massive-graph similarity function with attribution.
     ACM Transactions on Knowledge Discovery from Data (TKDD), 10(3), 1-43.
+
+    Parameters
+    ----------
+    A1,A2: np.ndarray
+        Adjacency (weight) matrices. Must be of same shape.
+    direction: str
+        Whether to compute in- or out-degree. If "in" (default), uses in-degree,
+        otherwise out-degree.
+
+    Returns
+    -------
+    np.float: DeltaCon distance
     """
     D1 = np.diag(A1.sum(axis=0 if direction=="in" else 1))
     D2 = np.diag(A2.sum(axis=0 if direction=="in" else 1))
@@ -26,6 +39,29 @@ def DeltaCon(A1: np.ndarray, A2: np.ndarray, direction="in"):
 
 def SpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
                      normalized_laplacian=False, n_eig=None):
+    """
+    Spectral distance of the graph, given by the L2-norm of the vector
+    of eigenvalue differences of the Laplacian matrices of the networks.
+
+    Parameters
+    ----------
+    A1,A2: np.ndarray
+        Adjacency (weight) matrices. Must be of same shape.
+    direction: str
+        Whether to compute in- or out-degree. If "in" (default), uses in-degree,
+        otherwise out-degree.
+    normalized_laplacian: bool
+        If True, uses Normalized Laplacian (tenetan.static.linalg.NormalizedLaplacian)
+        for eigenvalue computation, otherwise regular Laplacian
+        (tenetan.static.linalg.Laplacian). Default False.
+    n_eig: int
+        Number of eigenvalues to use, starting from the leading eigenvalue.
+        If None (default), uses all eigenvalues, i.e., the size of A1.
+
+    Returns
+    -------
+    dist: np.float, spectral distance
+    """
     if n_eig is None:
         n_eig = A1.shape[0]
     L = NormalizedLaplacian if normalized_laplacian else Laplacian
@@ -42,6 +78,31 @@ def SpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
 
 def NormalizedSpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
                      normalized_laplacian=False, n_eig=None):
+    # TODO Add switch min/max
+    """
+    Normalized spectral distance of the graph.
+    Same as Spectral Distance, but the value is normalized by sqrt() of minimum (maximum)
+    sum of the square of the eigenvalues of either Laplacian.
+
+    Parameters
+    ----------
+    A1,A2: np.ndarray
+        Adjacency (weight) matrices. Must be of same shape.
+    direction: str
+        Whether to compute in- or out-degree. If "in" (default), uses in-degree,
+        otherwise out-degree.
+    normalized_laplacian: bool
+        If True, uses Normalized Laplacian (tenetan.static.linalg.NormalizedLaplacian)
+        for eigenvalue computation, otherwise regular Laplacian
+        (tenetan.static.linalg.Laplacian). Default False.
+    n_eig: int
+        Number of eigenvalues to use, starting from the leading eigenvalue.
+        If None (default), uses all eigenvalues, i.e., the size of A1.
+
+    Returns
+    -------
+    dist: np.float, spectral distance
+    """
     if n_eig is None:
         n_eig = A1.shape[0]
     L = NormalizedLaplacian if normalized_laplacian else Laplacian
@@ -60,6 +121,20 @@ def NormalizedSpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
 
 
 def GraphEditDistance(A1: np.ndarray, A2: np.ndarray):
+    """
+    Graph edit distance between graph adjacency matrices A1 and A2, given bu
+    N(A1) +N(A2) − 2N(A1∩A2) + E(A1) + E(A2) − 2E(A1∩A2),
+    where N(A) is the number of nodes and E(A) is the number of edges in the graph
+
+    Parameters
+    ----------
+    A1,A2: np.ndarray
+        Adjacency (weight) matrices. Must be of same shape.
+
+    Returns
+    -------
+    dist: graph edit distance
+    """
 
     def nodes(A: np.ndarray):
         # Find rows and columns that are not all zeros

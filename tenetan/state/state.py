@@ -10,6 +10,23 @@ __all__ = ["MasudaHolme", "DunnIndex"]
 
 
 def DunnIndex(D: np.ndarray, labels: np.ndarray) -> float:
+    """
+    Dunn Index of a clustering of objects.
+
+    Computed as the minimum distance between two clusters divided by the maximum
+    diameter of a single cluster.
+    Parameters
+    ----------
+    D: np.ndarray,
+        Distance (N,N) matrix giving pairwise distances between N objects.
+    labels: np.ndarray,
+        Vector of cluster labels, i.e., labels[i] given the integer label of cluster of i.
+
+    Returns
+    -------
+    dunn: float,
+        Dunn Index
+    """
     unique_labels = np.unique(labels)
     n_clusters = len(unique_labels)
 
@@ -40,6 +57,48 @@ def DunnIndex(D: np.ndarray, labels: np.ndarray) -> float:
 
 
 def MasudaHolme(G: SnapshotGraph, sim: callable = GraphEditDistance):
+    """
+    State detection in Snapshot temporal network by method of Masuda & Holme.
+
+    State detection is performed by clustering snapshots of the temporal network,
+    i.e. all possible timestamps, by calculating distances between snapshot
+    adjacency (weight) matrices and applying hierarchical clustering to the resulting
+    distance matrix. Best clustering is selected using Dunn Index.
+
+    In case clustering (scipy linkage) computation fails, return only the distance
+    matrix (all other returns are None).
+
+    Parameters
+    ----------
+    G: SnapshotGraph,
+    sim: callable,
+        Distance function to use for distance computation between snapshot (default GraphEditDistance).
+        Must accept two adjacency matrices A1 and A2 as the only parameters
+        (NumPy arrays of shape (N,N)).
+        If a function accepts more parameters, they should be initialized with
+        functools.partial.
+
+    Returns
+    -------
+        best_C: int
+            Index of the best cluster assignment and best Dunn Index
+            (i.e., argmax(dunn_scores)).
+            Since indexes are 0-based, the amount of clusters is best_C+1.
+        labels: np.ndarray
+            Array of shape (T,T) giving the assignment of T timestamps to different
+            number of clusters;
+            labels[t,c] gives the cluster of t when c+1 clusters
+            are created;
+            labels[:, best_C] gives the best cluster assignment according
+            to Dunn index.
+        dunn_scores: np.ndarray
+            Vector of size T; dunn_scores[c] gives the Dunn index of c+1 clusters;
+            dunn_scores[best_C] gives the best Dunn index.
+        distance_matrix: np.ndarray
+            Matrix of shape (T,T) encoding distances between all pairs of timestamps.
+        linkage_matrix: np.ndarray
+            Linkage matrix for clustering, given by scipy.cluster.hierarchy.linkage
+    """
 
     N, T = G.N, G.T
     A = G.tensor
