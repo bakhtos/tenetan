@@ -4,7 +4,7 @@ from .linalg import NormalizedLaplacian, Laplacian
 
 __all__ = ["DeltaCon", "SpectralDistance", "NormalizedSpectralDistance", "GraphEditDistance"]
 
-def DeltaCon(A1: np.ndarray, A2: np.ndarray, direction="in"):
+def DeltaCon(A1: np.ndarray, A2: np.ndarray, direction: str = "in") -> np.floating:
     """
     DeltaCon graph distance, as defined in:
     Koutra, D., Shah, N., Vogelstein, J. T., Gallagher, B., & Faloutsos, C. (2016)
@@ -37,8 +37,9 @@ def DeltaCon(A1: np.ndarray, A2: np.ndarray, direction="in"):
     return np.sqrt(np.sum(np.square(np.sqrt(S1) - np.sqrt(S2))))
 
 
-def SpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
-                     normalized_laplacian=False, n_eig=None):
+def SpectralDistance(A1: np.ndarray, A2: np.ndarray, direction: str = "in",
+                     normalized_laplacian: bool = False,
+                     n_eig: int = None) -> np.floating:
     """
     Spectral distance of the graph, given by the L2-norm of the vector
     of eigenvalue differences of the Laplacian matrices of the networks.
@@ -76,8 +77,9 @@ def SpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
     return np.linalg.norm(eig1-eig2)
 
 
-def NormalizedSpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
-                     normalized_laplacian=False, n_eig=None):
+def NormalizedSpectralDistance(A1: np.ndarray, A2: np.ndarray, direction: str = "in",
+                               normalized_laplacian: bool = False,
+                               n_eig: int = None) -> np.floating:
     # TODO Add switch min/max
     """
     Normalized spectral distance of the graph.
@@ -120,7 +122,7 @@ def NormalizedSpectralDistance(A1: np.ndarray, A2: np.ndarray, direction="in",
     return np.linalg.norm(eig1-eig2)/np.sqrt(m)
 
 
-def GraphEditDistance(A1: np.ndarray, A2: np.ndarray):
+def GraphEditDistance(A1: np.ndarray, A2: np.ndarray) -> int:
     """
     Graph edit distance between graph adjacency matrices A1 and A2, given bu
     N(A1) +N(A2) − 2N(A1∩A2) + E(A1) + E(A2) − 2E(A1∩A2),

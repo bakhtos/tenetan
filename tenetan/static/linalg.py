@@ -2,7 +2,7 @@ import numpy as np
 
 __all__ = ["Laplacian", "NormalizedLaplacian"]
 
-def Laplacian(A: np.ndarray, direction="in") -> np.ndarray:
+def Laplacian(A: np.ndarray, direction:str = "in") -> np.ndarray:
     """
     Laplacian matrix of the graph defined by adjacency (weight) matrix A.
 
@@ -25,7 +25,7 @@ def Laplacian(A: np.ndarray, direction="in") -> np.ndarray:
     return  np.diag(D) - A
 
 
-def NormalizedLaplacian(A: np.ndarray, direction="in") -> np.ndarray:
+def NormalizedLaplacian(A: np.ndarray, direction: str = "in") -> np.ndarray:
     """
     Normalized Laplacian matrix of the graph defined by adjacency (weight) matrix A.
 
