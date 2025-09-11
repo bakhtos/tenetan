@@ -3,6 +3,7 @@ import numpy as np
 from itertools import combinations
 from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import linkage, cut_tree
+from typing import Callable
 
 from tenetan.static.distance import *
 
@@ -56,9 +57,11 @@ def DunnIndex(D: np.ndarray, labels: np.ndarray) -> float:
     return min_inter / max_intra if max_intra > 0 else 0
 
 
-def MasudaHolme(G: SnapshotGraph, dist: callable = GraphEditDistance):
+def MasudaHolme(G: SnapshotGraph, dist: Callable = GraphEditDistance):
     """
     State detection in Snapshot temporal network by method of Masuda & Holme.
+    Masuda, N., & Holme, P. (2019). Detecting sequences of system states in temporal networks.
+    Scientific reports, 9(1), 795.
 
     State detection is performed by clustering snapshots of the temporal network,
     i.e. all possible timestamps, by calculating distances between snapshot
@@ -71,7 +74,7 @@ def MasudaHolme(G: SnapshotGraph, dist: callable = GraphEditDistance):
     Parameters
     ----------
     G: SnapshotGraph,
-    dist: callable,
+    dist: Callable,
         Distance function to use for distance computation between snapshot (default GraphEditDistance).
         Must accept two adjacency matrices A1 and A2 as the only parameters
         (NumPy arrays of shape (N,N)).
