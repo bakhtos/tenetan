@@ -76,5 +76,5 @@ def GraphEditDistance(A1: np.ndarray, A2: np.ndarray):
     A1 = A1.astype(np.bool)
     A2 = A2.astype(np.bool)
 
-    return (nodes(A1) + nodes(A2) - 2*nodes(A1&A2)
+    return (nodes(A1) + nodes(A2) - 2*nodes(A1|A2)
             + edges(A1) + edges(A2) - 2*edges(A1&A2))
