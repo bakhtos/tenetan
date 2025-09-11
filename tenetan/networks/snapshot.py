@@ -199,6 +199,8 @@ class SnapshotGraph:
         rows = []
         vertex_set = set()
         timestamp_set = set()
+        vertex_list = []
+        timestamp_list = []
         for input_file in csv_list:
             with open(input_file, 'r', newline='') as f:
                 reader = csv.DictReader(f)
@@ -207,15 +209,19 @@ class SnapshotGraph:
                     target_ = row[target]
                     timestamp_ = str(pathlib.Path(input_file).with_suffix('')
                                      ) if timestamp is None else row[timestamp]
-                    vertex_set.add(source_)
-                    vertex_set.add(target_)
-                    timestamp_set.add(timestamp_)
+                    if source_ not in vertex_set:
+                        vertex_set.add(source_)
+                        vertex_list.append(source_)
+                    if target_ not in vertex_set:
+                        vertex_set.add(target_)
+                        vertex_list.append(target_)
+                    if timestamp_ not in timestamp_set:
+                        timestamp_set.add(timestamp_)
+                        timestamp_list.append(timestamp_)
                     rows.append([source_, target_, timestamp_, row.get(weight, 1.0)])
 
-        vertex_list = list(vertex_set)
-        vertex_list.sort() if sort_vertices else None
-        timestamp_list = list(timestamp_set)
-        timestamp_list.sort() if sort_timestamps else None
+        if sort_vertices: vertex_list.sort()
+        if sort_timestamps: timestamp_list.sort()
         self.load_edge_list(rows, vertex_list, timestamp_list, directed, dtype)
 
     def write_csv(self, path, /, *, source='source', target='target',
@@ -257,14 +263,16 @@ class SnapshotGraph:
                        directed=True, dtype=np.float32,
                        sort_vertices=False, sort_timestamps=False):
 
-        vertex_set = set()
+        declared_vertex_set = set()
         seen_vertex_set = set()
         timestamp_set = set()
+        vertex_list = []
+        timestamp_list = []
         rows = []
         for file in json_list:
             with open(file, 'r') as f:
                 data = json.load(f)
-            vertex_set.update(data[nodes])
+            declared_vertex_set.update(data[nodes])
             for edge in data[edges]:
                 source_ = edge[source]
                 target_ = edge[target]
@@ -272,23 +280,27 @@ class SnapshotGraph:
                 timestamp_ = str(pathlib.Path(file).with_suffix('')
                                  ) if timestamp is None else timestamp
                 rows.append([source_, target_, timestamp_, weight])
-                timestamp_set.add(timestamp_)
-                seen_vertex_set.add(source_)
-                seen_vertex_set.add(target_)
+                if source_ not in seen_vertex_set:
+                    seen_vertex_set.add(source_)
+                    vertex_list.append(source_)
+                if target_ not in seen_vertex_set:
+                    seen_vertex_set.add(target_)
+                    vertex_list.append(target_)
+                if timestamp_ not in timestamp_set:
+                    timestamp_set.add(timestamp_)
+                    timestamp_list.append(timestamp_)
 
-        not_declared = seen_vertex_set - vertex_set
+        not_declared = seen_vertex_set - declared_vertex_set
         if not_declared:
             print(f'Following vertices were not declared in "{nodes}"', not_declared)
 
-        not_connected = vertex_set - seen_vertex_set
+        not_connected = declared_vertex_set - seen_vertex_set
         if not_connected:
             print(f'Following vertices are not seen in "{edges}", and are ignored:', not_declared)
 
 
-        vertex_list = list(seen_vertex_set)
-        vertex_list.sort() if sort_vertices else None
-        timestamp_list = list(timestamp_set)
-        timestamp_list.sort() if sort_timestamps else None
+        if sort_vertices: vertex_list.sort()
+        if sort_timestamps: timestamp_list.sort()
         self.load_edge_list(rows, vertex_list, timestamp_list, directed, dtype)
 
     def write_json(self, path, /, *, source='source', target='target', timestamp='timestamp',
