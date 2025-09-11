@@ -56,7 +56,7 @@ def DunnIndex(D: np.ndarray, labels: np.ndarray) -> float:
     return min_inter / max_intra if max_intra > 0 else 0
 
 
-def MasudaHolme(G: SnapshotGraph, sim: callable = GraphEditDistance):
+def MasudaHolme(G: SnapshotGraph, dist: callable = GraphEditDistance):
     """
     State detection in Snapshot temporal network by method of Masuda & Holme.
 
@@ -71,7 +71,7 @@ def MasudaHolme(G: SnapshotGraph, sim: callable = GraphEditDistance):
     Parameters
     ----------
     G: SnapshotGraph,
-    sim: callable,
+    dist: callable,
         Distance function to use for distance computation between snapshot (default GraphEditDistance).
         Must accept two adjacency matrices A1 and A2 as the only parameters
         (NumPy arrays of shape (N,N)).
@@ -106,7 +106,7 @@ def MasudaHolme(G: SnapshotGraph, sim: callable = GraphEditDistance):
     for t1, t2 in combinations(range(T), 2):
         A1 = A[:, :, t1]
         A2 = A[:, :, t2]
-        distance_matrix[t1,t2] = distance_matrix[t2, t1] = sim(A1, A2)
+        distance_matrix[t1,t2] = distance_matrix[t2, t1] = dist(A1, A2)
     distance_vector = squareform(distance_matrix)
     try:
         linkage_matrix = linkage(distance_vector)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     G.load_csv("../datasets/eg_taylor.csv",
                source="i", target="j", timestamp="t", weight="w",
                sort_vertices=True, sort_timestamps=True)
-    best_C, labels, dunn_scores, distance_matrix, linkage_matrix = MasudaHolme(G, sim=SpectralDistance)
+    best_C, labels, dunn_scores, distance_matrix, linkage_matrix = MasudaHolme(G, dist=SpectralDistance)
     print(best_C)
     print(dunn_scores)
     print(labels)
