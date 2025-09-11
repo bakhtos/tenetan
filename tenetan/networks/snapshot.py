@@ -80,6 +80,10 @@ class SnapshotGraph:
     def T(self):
         return len(self._timestamps)
 
+    @property
+    def E(self):
+        return np.count_nonzero(self._tensor)
+
     def permute_timestamps(self, new_order):
         assert type(new_order) is list
         assert set(new_order) == set(self._timestamps)
