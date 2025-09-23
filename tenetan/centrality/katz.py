@@ -44,7 +44,7 @@ class ConstantDecay(DecayFunction):
 
 class BaseTemporalKatzCentrality(ABC):
     @abstractmethod
-    def update(self, u, v, t):
+    def update(self, u, v, t) -> float:
         pass
 
 
@@ -99,27 +99,23 @@ class TemporalKatzCentrality(BaseTemporalKatzCentrality):
         self.decay = decay_function
         self.edge_data = defaultdict(list)  # v → list of (z, t_zv, w_zv)
 
-    def update(self, u, v, t):
+    def update(self, u, v, t) -> float:
         """Update the graph with edge (u → v) at time t using general update rule (Eq. 11)."""
 
-        # Compute r_u(t) = sum over all edges ending in u (for recursive path growth)
-        r_u = 0.0
-        for z, t_zu, w_zu in self.edge_data[u]:
-            r_u += w_zu * self.decay.phi(t - t_zu)
+        # Compute r_u(t)
+        r_u = sum(w_zu * self.decay.phi(t - t_zu) for z, t_zu, w_zu in self.edge_data[u])
 
         # Add new edge (u → v) with weight = 1 + r_u
-        w_uv = 1 + r_u
-        self.edge_data[v].append((u, t, w_uv))
+        self.edge_data[v].append((u, t, (1 + r_u)))
 
-        # Recompute all current scores at time t using Eq. (11)
-        current_scores = {}
-        for node in self.edge_data:
-            r = 0.0
-            for z, t_zv, w_zv in self.edge_data[node]:
-                r += w_zv * self.decay.phi(t - t_zv)
-            current_scores[node] = r
+        return self.query(v, t)
 
-        return current_scores
+    def query(self, u, t) -> float:
+        """Compute the centrality of node u at time t using Eq. (11)."""
+        return sum(
+            w_zv * self.decay.phi(t - t_zv)
+            for z, t_zv, w_zv in self.edge_data[u]
+        )
 
 
 class TruncatedTemporalKatzCentrality:
