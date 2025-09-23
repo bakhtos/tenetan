@@ -1,45 +1,81 @@
 from collections import defaultdict
 import math
 from abc import ABC, abstractmethod
-
-
-class DecayFunction(ABC):
-    @abstractmethod
-    def phi(self, delta_t: float) -> float:
-        """Weight for an edge given time since last interaction (ϕ)."""
-        pass
-
-
-class ConstantDecay(DecayFunction):
-    def __init__(self, beta: float):
-        self.beta = beta
-
-    def phi(self, delta_t: float) -> float:
-        return self.beta
+from typing import Callable
 
 
 class BaseTemporalKatzCentrality(ABC):
     @abstractmethod
     def update(self, u, v, t) -> float:
+        """Update the graph with edge (u → v) at time t using general update rule.
+
+        Parameters
+        ----------
+        u: Any
+            source node of the edge
+        v: Any
+            target node of the edge
+        t: int
+            timestamp of the edge
+
+        Returns
+        -------
+        float:
+            r_t[v], the new score of node v at time t
+        """
         pass
 
     @abstractmethod
     def query(self, u, t) -> float:
+        """Compute the centrality of node u at time t.
+
+        Parameters
+        ----------
+        u: Any
+            node
+        t: int
+            timestamp to decay paths to
+
+        Returns
+        -------
+        float:
+        r_t[u], the new score of node u at time t
+        """
         pass
 
 
 class TemporalKatzCentrality(BaseTemporalKatzCentrality):
-    def __init__(self, decay_function: DecayFunction):
-        if not isinstance(decay_function, DecayFunction):
-            raise TypeError("decay_function must implement DecayFunction interface.")
-        self.decay = decay_function
+    def __init__(self, decay_function: Callable[[float], float]) -> None:
+        """Initialize the Temporal Katz Centrality with the given decay function.
+
+        Parameters
+        ----------
+        decay_function:
+            function float -> float to be used for path decay
+        """
+        self.phi = decay_function
         self.edge_data = defaultdict(list)  # v → list of (z, t_zv, w_zv)
 
     def update(self, u, v, t) -> float:
-        """Update the graph with edge (u → v) at time t using general update rule (Eq. 11)."""
+        """Update the graph with edge (u → v) at time t using general update rule.
+
+        Parameters
+        ----------
+        u: Any
+            source node of the edge
+        v: Any
+            target node of the edge
+        t: int
+            timestamp of the edge
+
+        Returns
+        -------
+        float:
+            r_t[v], the new score of node v at time t
+        """
 
         # Compute r_u(t)
-        r_u = sum(w_zu * self.decay.phi(t - t_zu) for z, t_zu, w_zu in self.edge_data[u])
+        r_u = sum(w_zu * self.phi(t - t_zu) for z, t_zu, w_zu in self.edge_data[u])
 
         # Add new edge (u → v) with weight = 1 + r_u
         self.edge_data[v].append((u, t, (1 + r_u)))
@@ -47,32 +83,64 @@ class TemporalKatzCentrality(BaseTemporalKatzCentrality):
         return self.query(v, t)
 
     def query(self, u, t) -> float:
-        """Compute the centrality of node u at time t using Eq. (11)."""
+        """Compute the centrality of node u at time t.
+
+        Parameters
+        ----------
+        u: Any
+            node
+        t: int
+            timestamp to decay paths to
+
+        Returns
+        -------
+        float:
+            r_t[u], the new score of node u at time t
+        """
         return sum(
-            w_zv * self.decay.phi(t - t_zv)
+            w_zv * self.phi(t - t_zv)
             for z, t_zv, w_zv in self.edge_data[u]
             if t_zv < t
         )
 
 
 class TruncatedTemporalKatzCentrality(BaseTemporalKatzCentrality):
-    def __init__(self, decay_function: DecayFunction, K):
+    def __init__(self, decay_function: Callable[[float], float], K: int):
+        """Initialize the Temporal Katz Centrality with the given decay function and max walk length K.
+
+        Parameters
+        ----------
+        decay_function:
+            function float -> float to be used for path decay
+        K: int
+            maximum walk length to consider
         """
-        decay_function: must have .phi(delta_t)
-        K: maximum walk length to consider
-        """
-        if not isinstance(decay_function, DecayFunction):
-            raise TypeError("decay_function must implement DecayFunction interface.")
-        self.decay = decay_function
+        self.phi = decay_function
         self.K = K
         # edge_data[k][v] = list of (z, t_zv, w_zv) for paths of length k ending at v
         self.edge_data = [defaultdict(list) for _ in range(K + 1)]  # index 0 unused
 
     def update(self, u, v, t) -> float:
+        """Update the graph with edge (u → v) at time t using general update rule.
+
+        Parameters
+        ----------
+        u: Any
+            source node of the edge
+        v: Any
+            target node of the edge
+        t: int
+            timestamp of the edge
+
+        Returns
+        -------
+        float:
+            r_t[v], the new score of node v at time t
+        """
         self.edge_data[1][v].append((u, t, 1.0))
         for k in range(2, self.K + 1):
             score = sum(
-                w_zu * self.decay.phi(t - t_zu)
+                w_zu * self.phi(t - t_zu)
                 for z, t_zu, w_zu in self.edge_data[k - 1][u]
                 if t_zu < t
             )
@@ -81,16 +149,39 @@ class TruncatedTemporalKatzCentrality(BaseTemporalKatzCentrality):
         return self.query(v, t)
 
     def query(self, u, t) -> float:
+        """Compute the centrality of node u at time t.
+
+        Parameters
+        ----------
+        u: Any
+            node
+        t: int
+            timestamp to decay paths to
+
+        Returns
+        -------
+        float:
+            r_t[u], the new score of node u at time t
+        """
         r = 0.0
         for k in range(1, self.K + 1):
             for z, t_zv, w_zv in self.edge_data[k][u]:
                 if t_zv < t:
-                    r += w_zv * self.decay.phi(t - t_zv)
+                    r += w_zv * self.phi(t - t_zv)
         return r
 
 
 class LazyKatzCentrality(BaseTemporalKatzCentrality):
     def __init__(self, beta: float, c: float):
+        """Initialize Lazy Katz centrality with parameters of exponential decay
+
+        Parameters
+        ----------
+        beta: float
+            scaling parameter of β·exp(−ct)
+        c: float
+            decay parameter of β·exp(−ct)
+        """
         self.beta = beta
         self.c = c
         self.r = defaultdict(float)
@@ -101,10 +192,21 @@ class LazyKatzCentrality(BaseTemporalKatzCentrality):
         return math.exp(-self.c * delta_t)
 
     def update(self, u, v, t) -> float:
-        """
-        Update the centrality when edge (u → v) arrives at time t.
-        Applies the lazy decay rule.
-        Returns updated r[v](t).
+        """Update the graph with edge (u → v) at time t using the lazy update rule for exponential decay.
+
+        Parameters
+        ----------
+        u: Any
+            source node of the edge
+        v: Any
+            target node of the edge
+        t: int
+            timestamp of the edge
+
+        Returns
+        -------
+        float:
+            r_t[v], the new score of node v at time t
         """
 
         # Apply lazy decay
@@ -118,5 +220,25 @@ class LazyKatzCentrality(BaseTemporalKatzCentrality):
         return self.r[v]
 
     def query(self, u, t) -> float:
-        """Return decayed score r[u](t) on demand."""
+        """Compute the centrality of node u at time t. Only works for t > t_last[u].
+
+        Parameters
+        ----------
+        u: Any
+            node
+        t: int
+            timestamp to decay paths to
+
+        Returns
+        -------
+        float:
+            r_t[u], the new score of node u at time t
+
+        Raises
+        ------
+        ValueError:
+            If t is less than t_last[u], i.e., the most recent time node u had an edge
+        """
+        if t < self.t_last[u]:
+            raise ValueError(f"Can only compute centrality for node {u} for t > {self.t_last[u]}, got {t}")
         return self.r[u] * self._decay(t - self.t_last[u])
