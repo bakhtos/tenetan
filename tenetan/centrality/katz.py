@@ -171,7 +171,7 @@ class TruncatedTemporalKatzCentrality(BaseTemporalKatzCentrality):
         return r
 
 
-class LazyKatzCentrality(BaseTemporalKatzCentrality):
+class LazyTemporalKatzCentrality(BaseTemporalKatzCentrality):
     def __init__(self, beta: float, c: float):
         """Initialize Lazy Katz centrality with parameters of exponential decay
 
