@@ -85,64 +85,34 @@ class TruncatedTemporalKatzCentrality(BaseTemporalKatzCentrality):
         return r
 
 
-class FastDecayFunction(DecayFunction, ABC):
-    @abstractmethod
-    def decay_multiplier(self, delta_t: float) -> float:
-        """Decay multiplier for aging centrality scores."""
-        pass
-
-
-class ExponentialDecay(FastDecayFunction):
+class LazyKatzCentrality:
     def __init__(self, beta: float, c: float):
         self.beta = beta
         self.c = c
+        self.r = defaultdict(float)
+        self.t_last = defaultdict(lambda: -math.inf)  # last updated time for each node
 
-    def phi(self, delta_t: float) -> float:
-        return self.beta * math.exp(-self.c * delta_t)
-
-    def decay_multiplier(self, delta_t: float) -> float:
+    def decay(self, delta_t: float) -> float:
+        """Decay multiplier for elapsed time."""
         return math.exp(-self.c * delta_t)
 
-
-class FastTemporalKatzCentrality(BaseTemporalKatzCentrality):
-    def __init__(self, decay_function: FastDecayFunction):
+    def update(self, u, v, t) -> float:
         """
-        Parameters:
-            decay_function: an object with methods
-                - phi(delta_t): edge weight based on time elapsed
-                - decay_multiplier(delta_t): multiplier for score aging
+        Update the centrality when edge (u → v) arrives at time t.
+        Applies the lazy decay rule.
+        Returns updated r[v](t).
         """
-        if not isinstance(decay_function, FastDecayFunction):
-            raise TypeError("decay_function must implement FastDecayFunction interface.")
-        self.decay = decay_function
-        self.r = defaultdict(float)       # centrality scores
-        self.t_last = defaultdict(float)  # last update time per node
-        self.edge_data = defaultdict(list)  # v → list of (u, t, w_uv)
 
-    def _decay_score(self, u, t_now):
-        delta = t_now - self.t_last[u]
-        if delta > 0:
-            self.r[u] *= self.decay.decay_multiplier(delta)
-            self.t_last[u] = t_now
+        # Apply lazy decay
+        self.r[u] = self.r[u] * self.decay(t - self.t_last[u])
+        self.r[v] = self.r[v] * self.decay(t - self.t_last[v]) + (1 + self.r[u]) * self.beta
 
-    def update(self, u, v, t):
-        """Ingest edge (u → v) at time t and return current scores of all known nodes, including zeros."""
+        # Update timestamps
+        self.t_last[u] = t
+        self.t_last[v] = t
 
-        # Decay u
-        self._decay_score(u, t)
-        r_u = self.r[u]
-        w_uv = 1 + r_u
+        return self.r[v]
 
-        self.edge_data[v].append((u, t, w_uv))
-
-        # Decay v and update its centrality
-        self._decay_score(v, t)
-        self.r[v] += w_uv * self.decay.phi(0)
-
-        # Return current scores for all known nodes, including zero scores
-        current_scores = {}
-        for node in self.t_last:
-            self._decay_score(node, t)
-            current_scores[node] = self.r[node]  # could be zero
-
-        return current_scores
+    def query(self, u, t) -> float:
+        """Return decayed score r[u](t) on demand."""
+        return self.r[u] * self.decay(t - self.t_last[u])
