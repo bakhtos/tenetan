@@ -5,6 +5,14 @@ from typing import Callable
 
 
 class BaseTemporalKatzCentrality(ABC):
+    """Abstract Base Class for Temporal Katz Centrality.
+
+    Can be used to define own versions of Katz Centrality for specific decays or different
+    data storing mechanisms.
+    Subclasses must implement update(u,v,t) for a new edge (u → v) at time t
+    and query(u, t) for score of u at time t.
+
+    """
     @abstractmethod
     def update(self, u, v, t) -> float:
         """Update the graph with edge (u → v) at time t using general update rule.
@@ -45,6 +53,11 @@ class BaseTemporalKatzCentrality(ABC):
 
 
 class TemporalKatzCentrality(BaseTemporalKatzCentrality):
+    """Implementation of TemporalKatzCentrality for a general case (Eq. 10, 11).
+    Béres, F., Pálovics, R., Oláh, A., & Benczúr, A. A. (2018).
+    Temporal walk based centrality metric for graph streams.
+    Applied network science, 3(1), 32.
+    """
     def __init__(self, decay_function: Callable[[float], float]) -> None:
         """Initialize the Temporal Katz Centrality with the given decay function.
 
@@ -105,6 +118,11 @@ class TemporalKatzCentrality(BaseTemporalKatzCentrality):
 
 
 class TruncatedTemporalKatzCentrality(BaseTemporalKatzCentrality):
+    """Implementation of TemporalKatzCentrality truncating length of walks (Eq. 12, 13).
+    Béres, F., Pálovics, R., Oláh, A., & Benczúr, A. A. (2018).
+    Temporal walk based centrality metric for graph streams.
+    Applied network science, 3(1), 32.
+    """
     def __init__(self, decay_function: Callable[[float], float], K: int):
         """Initialize the Temporal Katz Centrality with the given decay function and max walk length K.
 
@@ -172,6 +190,11 @@ class TruncatedTemporalKatzCentrality(BaseTemporalKatzCentrality):
 
 
 class LazyTemporalKatzCentrality(BaseTemporalKatzCentrality):
+    """Implementation of TemporalKatzCentrality for exponential decay with lazy decay (Eq. 14, 15).
+    Béres, F., Pálovics, R., Oláh, A., & Benczúr, A. A. (2018).
+    Temporal walk based centrality metric for graph streams.
+    Applied network science, 3(1), 32.
+    """
     def __init__(self, beta: float, c: float):
         """Initialize Lazy Katz centrality with parameters of exponential decay
 
