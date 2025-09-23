@@ -8,5 +8,6 @@
 | Eigenvector Centrality | Centrality measures in temporal networks with time series analysis                                                         | `tenetan.centrality.eigenvector.HuangSupraMatrix`  | Qiangjuan Huang, Chengli Zhao, Xue Zhang, Xioajie Wang, Dongyun Yi | https://doi.org/10.1209/0295-5075/118/36001    |
 | Eigenvector Centrality | Inter-layer similarity-based eigenvector centrality measures for temporal networks                                         | `tenetan.centrality.eigenvector.YinSupraMatrix`    | Ran-ran Yin, Qiang Guo, Jian-Nan Yang, Jian-Guo Liu                | https://doi.org/10.1016/j.physa.2018.08.018    |
 | Eigenvector Centrality | Node Importance Identification for Temporal Networks Based on Optimized Supra-Adjacency Matrix                             | `tenetan.centrality.eigenvector.LiuSupraMatrix`    | Rui Liu, Sheng Zhang, Donghui Zhang, Xuefeng Zhang, Xioaling Bao   | https://doi.org/10.3390/e24101391              |
+| Temporal Centrality    | Temporal walk based centrality metric for graph streams                                                                    | `tenetan.centrality.katz`                          | Ferenc Béres, Róbert Pálovics, Anna Oláh, András A. Benczúr        | https://doi.org/10.1007/s41109-018-0080-5      |
 
 
