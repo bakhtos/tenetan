@@ -114,7 +114,7 @@ class TemporalKatzCentrality(BaseTemporalKatzCentrality):
         )
 
 
-class TruncatedTemporalKatzCentrality:
+class TruncatedTemporalKatzCentrality(BaseTemporalKatzCentrality):
     def __init__(self, decay_function: DecayFunction, K):
         """
         decay_function: must have .phi(delta_t)
@@ -127,30 +127,22 @@ class TruncatedTemporalKatzCentrality:
         # edge_data[k][v] = list of (z, t_zv, w_zv) for paths of length k ending at v
         self.edge_data = [defaultdict(list) for _ in range(K + 1)]  # index 0 unused
 
-    def update(self, u, v, t):
-        """
-        Add edge u → v at time t.
-        Updates all truncated Katz scores up to length K.
-        Returns centrality scores r_v^{[k]}(t) for all nodes.
-        """
-        # Walks of length 1: base case
+    def update(self, u, v, t) -> float:
         self.edge_data[1][v].append((u, t, 1.0))
-
-        # Walks of length k: grow from walks of length (k-1) ending at u
         for k in range(2, self.K + 1):
-            score = 0.0
-            for z, t_zu, w_zu in self.edge_data[k - 1][u]:
-                score += w_zu * self.decay.phi(t - t_zu)
+            score = sum(
+                w_zu * self.decay.phi(t - t_zu)
+                for z, t_zu, w_zu in self.edge_data[k - 1][u]
+                if t_zu < t
+            )
             if score > 0:
                 self.edge_data[k][v].append((u, t, score))
+        return self.query(v, t)
 
-        # Recompute total centrality r_v^{[K]}(t) for all nodes
-        scores = {}
-        for node in set.union(*[set(e.keys()) for e in self.edge_data[1:]]):
-            r = 0.0
-            for k in range(1, self.K + 1):
-                for z, t_zv, w_zv in self.edge_data[k][node]:
+    def query(self, u, t) -> float:
+        r = 0.0
+        for k in range(1, self.K + 1):
+            for z, t_zv, w_zv in self.edge_data[k][u]:
+                if t_zv < t:
                     r += w_zv * self.decay.phi(t - t_zv)
-            scores[node] = r
-
-        return scores
+        return r
