@@ -23,6 +23,10 @@ class BaseTemporalKatzCentrality(ABC):
     def update(self, u, v, t) -> float:
         pass
 
+    @abstractmethod
+    def query(self, u, t) -> float:
+        pass
+
 
 class TemporalKatzCentrality(BaseTemporalKatzCentrality):
     def __init__(self, decay_function: DecayFunction):
@@ -85,14 +89,14 @@ class TruncatedTemporalKatzCentrality(BaseTemporalKatzCentrality):
         return r
 
 
-class LazyKatzCentrality:
+class LazyKatzCentrality(BaseTemporalKatzCentrality):
     def __init__(self, beta: float, c: float):
         self.beta = beta
         self.c = c
         self.r = defaultdict(float)
         self.t_last = defaultdict(lambda: -math.inf)  # last updated time for each node
 
-    def decay(self, delta_t: float) -> float:
+    def _decay(self, delta_t: float) -> float:
         """Decay multiplier for elapsed time."""
         return math.exp(-self.c * delta_t)
 
@@ -104,8 +108,8 @@ class LazyKatzCentrality:
         """
 
         # Apply lazy decay
-        self.r[u] = self.r[u] * self.decay(t - self.t_last[u])
-        self.r[v] = self.r[v] * self.decay(t - self.t_last[v]) + (1 + self.r[u]) * self.beta
+        self.r[u] = self.r[u] * self._decay(t - self.t_last[u])
+        self.r[v] = self.r[v] * self._decay(t - self.t_last[v]) + (1 + self.r[u]) * self.beta
 
         # Update timestamps
         self.t_last[u] = t
@@ -115,4 +119,4 @@ class LazyKatzCentrality:
 
     def query(self, u, t) -> float:
         """Return decayed score r[u](t) on demand."""
-        return self.r[u] * self.decay(t - self.t_last[u])
+        return self.r[u] * self._decay(t - self.t_last[u])
