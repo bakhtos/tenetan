@@ -9,14 +9,20 @@ class DecayFunction(ABC):
         """Weight for an edge given time since last interaction (ϕ)."""
         pass
 
+
+class ConstantDecay(DecayFunction):
+    def __init__(self, beta: float):
+        self.beta = beta
+
+    def phi(self, delta_t: float) -> float:
+        return self.beta
+
+
+class FastDecayFunction(DecayFunction, ABC):
     @abstractmethod
     def decay_multiplier(self, delta_t: float) -> float:
         """Decay multiplier for aging centrality scores."""
         pass
-
-
-class FastDecayFunction(DecayFunction, ABC):
-    pass
 
 
 class ExponentialDecay(FastDecayFunction):
@@ -29,17 +35,6 @@ class ExponentialDecay(FastDecayFunction):
 
     def decay_multiplier(self, delta_t: float) -> float:
         return math.exp(-self.c * delta_t)
-
-
-class ConstantDecay(DecayFunction):
-    def __init__(self, beta: float):
-        self.beta = beta
-
-    def phi(self, delta_t: float) -> float:
-        return self.beta
-
-    def decay_multiplier(self, delta_t: float) -> float:
-        return 1.0
 
 
 class BaseTemporalKatzCentrality(ABC):
