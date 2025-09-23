@@ -115,6 +115,7 @@ class TemporalKatzCentrality(BaseTemporalKatzCentrality):
         return sum(
             w_zv * self.decay.phi(t - t_zv)
             for z, t_zv, w_zv in self.edge_data[u]
+            if t_zv < t
         )
 
 
